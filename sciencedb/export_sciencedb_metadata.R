@@ -375,6 +375,7 @@ cell_metadata <- data.frame(
   stringsAsFactors = FALSE
 )
 cell_metadata[] <- lapply(cell_metadata, fill_missing)
+write_tsv(cell_metadata, file.path(paths$cell, "cell_metadata_harmonized.tsv"))
 gz <- gzfile(file.path(paths$cell, "cell_metadata_harmonized.tsv.gz"), "wt")
 write_tsv(cell_metadata, gz)
 close(gz)
@@ -643,6 +644,7 @@ dictionary <- data.frame(
   file_name = c(
     "01_source_datasets/source_dataset_summary.tsv",
     "02_sample_metadata/sample_metadata_harmonized.tsv",
+    "03_cell_metadata/cell_metadata_harmonized.tsv",
     "03_cell_metadata/cell_metadata_harmonized.tsv.gz",
     "03_cell_metadata/cell_counts_by_age_region_celltype.tsv",
     "05_embeddings_and_clusters/umap_coordinates.tsv.gz",
@@ -656,6 +658,7 @@ dictionary <- data.frame(
     "source_dataset; source_accession; publication_doi; access_level",
     "sample_id; brain_region_harmonized; age_interval_id; age_interval; age_range; sex; sequencing_modality",
     "cell_id; sample_id; source_dataset; brain_region_harmonized; age_interval_id; age_interval; age_range; cell_type_raw",
+    "cell_id; sample_id; source_dataset; brain_region_harmonized; age_interval_id; age_interval; age_range; cell_type_raw",
     "age_interval_id; brain_region_harmonized; cell_type_raw; cell_count",
     "cell_id; umap_1; umap_2",
     "cell_id; PC_1 ... PC_n",
@@ -668,6 +671,7 @@ dictionary <- data.frame(
     "Dataset provenance, repository identifiers, DOI status and access route.",
     "One row per harmonized dataset-sample-region-age-sex-technology combination.",
     "One row per retained cell or nucleus after metadata filtering.",
+    "One row per retained cell or nucleus after metadata filtering.",
     "Sparse coverage counts for age-by-region-by-raw-cell-type combinations.",
     "UMAP coordinates exported from the Seurat plotting object.",
     "PCA coordinates exported from the Seurat plotting object.",
@@ -679,6 +683,7 @@ dictionary <- data.frame(
   file = c(
     "01_source_datasets/source_dataset_summary.tsv",
     "02_sample_metadata/sample_metadata_harmonized.tsv",
+    "03_cell_metadata/cell_metadata_harmonized.tsv",
     "03_cell_metadata/cell_metadata_harmonized.tsv.gz",
     "03_cell_metadata/cell_counts_by_age_region_celltype.tsv",
     "05_embeddings_and_clusters/umap_coordinates.tsv.gz",
@@ -692,6 +697,7 @@ dictionary <- data.frame(
     "source_dataset; source_accession; publication_doi; access_level",
     "sample_id; brain_region_harmonized; age_interval_id; age_interval; age_range; sex; sequencing_modality",
     "cell_id; sample_id; source_dataset; brain_region_harmonized; age_interval_id; age_interval; age_range; cell_type_raw",
+    "cell_id; sample_id; source_dataset; brain_region_harmonized; age_interval_id; age_interval; age_range; cell_type_raw",
     "age_interval_id; brain_region_harmonized; cell_type_raw; cell_count",
     "cell_id; umap_1; umap_2",
     "cell_id; PC_1 ... PC_n",
@@ -703,6 +709,7 @@ dictionary <- data.frame(
   definition = c(
     "Dataset provenance, repository identifiers, DOI status and access route.",
     "One row per harmonized dataset-sample-region-age-sex-technology combination.",
+    "One row per retained cell or nucleus after metadata filtering.",
     "One row per retained cell or nucleus after metadata filtering.",
     "Sparse coverage counts for age-by-region-by-raw-cell-type combinations.",
     "UMAP coordinates exported from the Seurat plotting object.",

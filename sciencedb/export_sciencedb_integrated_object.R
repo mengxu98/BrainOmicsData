@@ -126,6 +126,7 @@ cell_metadata <- data.frame(
 )
 cell_metadata[] <- lapply(cell_metadata, fill_missing)
 
+write_tsv(cell_metadata, file.path(paths$cell, "cell_metadata_harmonized.tsv"))
 gz <- gzfile(file.path(paths$cell, "cell_metadata_harmonized.tsv.gz"), "wt")
 write_tsv(cell_metadata, gz)
 close(gz)
