@@ -1,6 +1,5 @@
 source("functions/prepare_env.R")
 PrepareEnv()
-sc <- reticulate::import("scanpy")
 
 log_message("Start loading data...")
 data_dir <- "../../data/BrainOmicsData/raw/"
@@ -48,8 +47,7 @@ for (acc in accessions) {
 
   tryCatch(
     {
-      adata <- sc$read_h5ad(h5ad_file)
-      srt <- adata_to_srt(adata)
+      srt <- scop::h5ad_to_srt(h5ad_file, verbose = TRUE)
       dir.create(processed_path, recursive = TRUE, showWarnings = FALSE)
       saveRDS(srt, output_file)
       log_message("Successfully processed {.val {acc}}")
@@ -60,7 +58,6 @@ for (acc in accessions) {
       fail_list <<- c(fail_list, acc)
     }
   )
-  rm(adata)
   rm(srt)
   gc()
 }

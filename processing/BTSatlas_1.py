@@ -145,7 +145,7 @@ adata_new.write(compatible_h5ad_path, compression="gzip")
 
 log_message("Compatible h5ad file saved successfully", message_type="success")
 log_message(
-    "You can now use this file with scop's adata_to_srt function", message_type="info"
+    "You can now use this file with scop::h5ad_to_srt()", message_type="info"
 )
 
 log_message("Saving metadata as CSV...", message_type="running")

@@ -12,10 +12,7 @@ if (!file.exists(file.path(res_dir, "BTS_atlas_raw.rds"))) {
   PrepareEnv()
   h5ad_path <- file.path(res_dir, "BTS_atlas_compatible.h5ad")
 
-  sc <- reticulate::import("scanpy")
-  adata <- sc$read_h5ad(h5ad_path)
-  object <- adata_to_srt(adata)
-  rm(adata)
+  object <- scop::h5ad_to_srt(h5ad_path, verbose = TRUE)
   gc()
   saveRDS(object, file.path(res_dir, "BTS_atlas_raw.rds"))
 } else {
