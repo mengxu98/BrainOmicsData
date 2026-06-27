@@ -95,6 +95,7 @@ describe_file <- function(path) {
   if (name == "source_dataset_summary.tsv") return("Summary of source datasets, accessions, repositories, access levels and retained cells.")
   if (name == "source_accessions.tsv") return("Original repository accessions and access routes for source data.")
   if (name == "sample_metadata_harmonized.tsv") return("Harmonized sample-level metadata with missing fields explicitly marked.")
+  if (name == "cell_metadata_harmonized.tsv") return("Harmonized cell-level metadata for retained cells or nuclei in uncompressed TSV format.")
   if (name == "cell_metadata_harmonized.tsv.gz") return("Harmonized cell-level metadata for retained cells or nuclei.")
   if (name == "age_interval_mapping.tsv") return("Mapping between S1-S15 age interval IDs, interval labels and age ranges.")
   if (name == "brain_region_mapping.tsv") return("Mapping of harmonized brain-region labels and optional region hierarchy.")
