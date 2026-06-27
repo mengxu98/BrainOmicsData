@@ -7,7 +7,7 @@ if (!requireNamespace("thisutils", quietly = TRUE)) {
 }
 
 packages <- c(
-  "Seurat", "mengxu98/scop", "grid", "ggplot2"
+  "Seurat", "patchwork", "mengxu98/scop", "grid", "ggplot2"
 )
 thisutils::check_r(packages)
 
@@ -15,6 +15,7 @@ log_message <- thisutils::log_message
 
 library(grid)
 library(ggplot2)
+library(patchwork)
 library(Seurat)
 library(scop)
 
