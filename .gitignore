@@ -1,3 +1,5 @@
 .DS_Store
-figures
+.omicos
+figures/
 manuscript/
+results/

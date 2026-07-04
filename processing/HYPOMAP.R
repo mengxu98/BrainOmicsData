@@ -5,11 +5,20 @@ res_dir <- check_dir("../../data/BrainOmicsData/processed/HYPOMAP/")
 
 log_message("Start loading data...")
 
-object <- readRDS(
-  file.path(
-    data_dir, "human_HYPOMAP_snRNASeq.rds"
+rds_file <- file.path(data_dir, "human_HYPOMAP_snRNASeq.rds")
+h5ad_file <- file.path(data_dir, "human_HYPOMAP_snRNASeq.h5ad")
+
+if (file.exists(rds_file)) {
+  object <- readRDS(rds_file)
+} else if (file.exists(h5ad_file)) {
+  object <- scop::h5ad_to_srt(h5ad_file, verbose = TRUE)
+  saveRDS(object, rds_file)
+} else {
+  stop(
+    "No HYPOMAP input found. Run download/HYPOMAP.sh or provide ",
+    rds_file
   )
-)
+}
 
 metadata <- object@meta.data
 metadata <- na.omit(metadata)

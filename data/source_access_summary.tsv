@@ -1,0 +1,28 @@
+dataset	access_status	download_script	source_url	notes
+AllenM1	public	download/AllenM1.sh	https://brain-map.org/our-research/cell-types-taxonomies/cell-types-database-rna-seq-data/human-m1-10x	Public Allen source files; current preprocessing consumes the BTSatlas-derived AllenM1_raw.rds split from BTS_atlas.h5ad.
+EGAD00001006049	public-via-BTSatlas	download/BTSatlas.sh	https://zenodo.org/records/10939707	Original EGA dataset is controlled-access, but current workflow uses the public BTSatlas-derived split object.
+EGAS00001006537	public-via-BTSatlas	download/BTSatlas.sh	https://ega-archive.org/studies/EGAS00001006537	Original EGA study is controlled-access; current workflow uses the public BTSatlas-derived split object from Zenodo record https://zenodo.org/records/10939707.
+GSE103723	public	download/GSE103723.sh	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE103nnn/GSE103723/suppl/	Public GEO supplementary files.
+GSE104276	public	download/GSE104276.sh	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE104nnn/GSE104276/suppl/	Public GEO supplementary files.
+GSE144136	public	download/GSE144136.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE144136	Public GEO record; GEO lists PMID 32341540 as the source publication.
+GSE168408	public	download/GSE168408.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE168408	Public GEO; current workflow also uses BTSatlas-derived split objects.
+GSE178175	public	download/GSE178175.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE178175	Public GEO record; GEO lists PMID 35256815 as the source publication.
+GSE186538	public	download/GSE186538.sh	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE186nnn/GSE186538/suppl/	Public GEO supplementary files.
+GSE199762	mixed public-and-controlled	download/GSE199762.sh	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE199nnn/GSE199762/suppl/	Public GEO supplementary files are downloadable; dbGaP phs003509.v1.p1 requires application.
+GSE202210	public	download/GSE202210.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE202210	Public GEO record; GEO lists PMID 39475571 as the source publication.
+GSE204683	public	download/GSE204683.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE204683	Public GEO and CELLxGENE files.
+GSE207334	public	download/GSE207334.sh	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE207nnn/GSE207334/suppl/	Public GEO supplementary files.
+GSE212606	public	download/GSE212606.sh	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE212nnn/GSE212606/suppl/	Public GEO supplementary files.
+GSE217511	public	download/GSE217511.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE217511	Public GEO.
+GSE261983	public	download/GSE261983.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE261983	Public GEO.
+GSE296073	public	download/GSE296073.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE296073	Public GEO plus public Zenodo files used by current workflow.
+GSE67835	public	download/GSE67835.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE67835	Public GEO.
+GSE81475	public	download/GSE81475.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE81475	Public GEO.
+GSE97942	public	download/GSE97942.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE97942	Public GEO; workflow uses GSE97930 snDrop-seq files under this series.
+HYPOMAP	public	download/HYPOMAP.sh	https://cellxgene.cziscience.com/collections/d0941303-7ce3-4422-9249-cf31eb98c480	Public CELLxGENE h5ad file; processing/HYPOMAP.R converts the downloaded h5ad when the prepared RDS is absent.
+Li_et_al_2018	public-via-BCAtlas		https://www.braincellatlas.org/	Current workflow uses the Brain Cell Atlas extracted result for this dataset; the previous /dataSet route returned HTTP 404 on 2026-06-30 and should be checked manually in the JavaScript portal. The original Li et al. 2018 paper also points broader PsychENCODE resources to development.psychencode.org and dbGaP phs000755.
+Ma_et_al_2022	public/source-specific	download/GSE207334.sh	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE207334	Companion prepared Ma_Sestan_mat.rds is source-specific; GSE207334 multiome files are public GEO.
+Nowakowski_et_al_2017	public-via-BCAtlas		https://www.braincellatlas.org/	Current workflow uses the Brain Cell Atlas extracted result for this dataset; the previous /dataSet route returned HTTP 404 on 2026-06-30 and should be checked manually in the JavaScript portal. The original Nowakowski et al. 2017 paper states RNA-seq data are deposited at dbGaP phs000989.v3.
+PRJCA015229	public	download/PRJCA015229.sh	https://ngdc.cncb.ac.cn/bioproject/browse/PRJCA015229	Public NGDC BioProject with downloadable OMIX005925, OMIX005926, OMIX005931 and OMIX005932 FTP files.
+ROSMAP	mixed public-and-controlled	download/rosmap_ucsc_snRNAseq.sh	https://compbio.mit.edu/ad_aging_brain/	Current scripts use public UCSC/Broad-hosted processed files; ROSMAP participant-level data generally require controlled access.
+SomaMut	mixed public-and-controlled	download/SomaMut.sh	https://publications.wenglab.org/SomaMut/	Public processed files include pfc.clean.rds used by this workflow; raw human aging data are in dbGaP phs003445.v1.p1.

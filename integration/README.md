@@ -39,5 +39,5 @@ Workflow summary:
 3. `datasets_integration_03.R` runs normalization, HVG selection, PCA,
    clustering, unintegrated UMAP, RPCA integration, Harmony integration, UMAPs,
    and exports `lisi_data.rds`.
-4. `datasets_annotation.R` maps 120 Seurat clusters to 9 major cell types and
+4. `annotation/datasets_annotation.R` maps 120 Seurat clusters to 9 major cell types and
    exports the full annotated object plus the marker-gene plotting object.

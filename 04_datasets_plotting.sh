@@ -20,7 +20,7 @@ should_process() {
 
 if should_process "figures/datasets/group_heatmap_markergenes.pdf"; then
   log_message "Running integrated atlas plotting..."
-  Rscript plotting/datasets.R
+  Rscript plotting/plotting.R
   log_message "Integrated atlas plotting completed successfully!" --message-type success
 else
   log_message "Integrated atlas plotting outputs already exist!"
@@ -32,4 +32,12 @@ if should_process "figures/lisi/lisi_plot_2.pdf"; then
   log_message "LISI plotting completed successfully!" --message-type success
 else
   log_message "LISI plotting outputs already exist!"
+fi
+
+if should_process "figures/fig1_revised.svg"; then
+  log_message "Running data-paper figure plotting..."
+  Rscript plotting/data_paper.R
+  log_message "Data-paper figure plotting completed successfully!" --message-type success
+else
+  log_message "Data-paper figure outputs already exist!"
 fi

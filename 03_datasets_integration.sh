@@ -49,6 +49,12 @@ run_step \
   "${integration_dir}/objects_integrated.rds"
 
 run_step \
-  "integration/datasets_annotation.R" \
+  "annotation/datasets_annotation.R" \
   "integration step 04: cluster-to-cell-type annotation" \
   "${integration_dir}/objects_celltypes.rds"
+
+log_message "Synchronizing harmonized metadata schema in integration RDS files..."
+Rscript sciencedb/metadata.R \
+  --integration-dir "$integration_dir" \
+  --repo-dir "."
+log_message "Harmonized metadata schema synchronized!" --message-type success

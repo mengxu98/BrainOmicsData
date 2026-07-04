@@ -45,8 +45,8 @@ fi
 
 
 # GSE104276
-# paper: https://doi.org/10.1126/sciadv.adg3754
-# pmid: https://www.ncbi.nlm.nih.gov/pubmed/37824614
+# paper: https://doi.org/10.1038/nature25980
+# pmid: https://www.ncbi.nlm.nih.gov/pubmed/29539641
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE104276
 # code:
 if should_process "../../data/BrainOmicsData/processed/GSE104276/GSE104276_processed.rds"; then
@@ -72,8 +72,8 @@ fi
 
 
 # GSE186538
-# paper: https://doi.org/10.1126/sciadv.adg3754
-# pmid: https://www.ncbi.nlm.nih.gov/pubmed/37824614
+# paper: https://doi.org/10.1016/j.neuron.2021.10.036
+# pmid: https://www.ncbi.nlm.nih.gov/pubmed/34798047
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186538
 # code:
 if should_process "../../data/BrainOmicsData/processed/GSE186538/GSE186538_processed.rds"; then

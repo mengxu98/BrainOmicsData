@@ -12,7 +12,7 @@ source "$(dirname "$0")/../functions/utils.sh"
 DATA_DIR="../../data/BrainOmicsData/raw/ROSMAP/processed_data"
 
 log_message "Starting ROSMAP RDS data download..."
- with expected file sizes (approximate)
+# Download list with expected file sizes (approximate).
 DOWNLOAD_LIST="
 https://personal.broadinstitute.org/cboix/ad427_data/Data/Processed_data/Astrocytes.rds|Astrocytes.rds|0
 https://personal.broadinstitute.org/cboix/ad427_data/Data/Processed_data/Excitatory_neurons_set1.rds|Excitatory_neurons_set1.rds|0

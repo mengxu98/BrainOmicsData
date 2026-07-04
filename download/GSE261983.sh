@@ -21,7 +21,7 @@ batch_download "$DOWNLOAD_LIST" "$DATA_DIR" 5
 
 
 TAR_FILE="$DATA_DIR/GSE261983_RAW.tar"
-# 检查是否有样本文件夹（解压后的标志）
+# Check whether sample directories already exist as the extraction marker.
 SAMPLE_DIRS_EXIST=$(find "$DATA_DIR" -maxdepth 1 -type d -name "GSM*_*_RNA" 2>/dev/null | wc -l | tr -d ' ')
 
 if [ -f "$TAR_FILE" ] && [ "$SAMPLE_DIRS_EXIST" -eq 0 ]; then
@@ -47,7 +47,7 @@ fi
 ORIGINAL_DIR=$(pwd)
 cd "$DATA_DIR"
 
-# 排除已知的辅助文件，只处理样本数据文件
+# Exclude known helper files and process only sample data files.
 EXCLUDE_PATTERNS="GSE261983_ATAC_peakset.bed.gz|GSE261983_RNA_gene_list.txt.gz|GSE261983_RAW.tar"
 
 GZ_FILES_IN_ROOT=$(find . -maxdepth 1 -type f -name "*.gz" 2>/dev/null | grep -vE "$EXCLUDE_PATTERNS" | wc -l | tr -d ' ')

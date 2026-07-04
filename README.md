@@ -20,10 +20,10 @@ bash 03_datasets_integration.sh T
 bash 04_datasets_plotting.sh T
 ```
 
-ScienceDB export defaults to the full package, including integrated-object
-derived cell metadata, PCA/UMAP coordinates, cluster labels and marker
-summaries. Use `SKIP_HEAVY=1 bash 05_sciencedb.sh` for a lightweight
-metadata-only staging run.
+ScienceDB export now writes the compact reuse package to
+`../../data/BrainOmicsData/ScienceDB`. The package contains a 10X-compatible
+count matrix, corrected minimal metadata, PCA/UMAP coordinates, reader scripts
+and a `provenance/` folder for source/access/citation audit files.
 
 HPC HPC connection details and Slurm entry points are documented in
 `hpc/README.md`.

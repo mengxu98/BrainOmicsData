@@ -1,4 +1,5 @@
 source("functions/prepare_env.R")
+source("functions/metadata_schema.R")
 
 data_dir <- "../../data/BrainOmicsData/processed/"
 res_dir <- check_dir(
@@ -91,120 +92,16 @@ if (!file.exists(objects_list_file)) {
     metadata$Age_num >= 60 & metadata$Unit == "Years" ~ "S15",
     TRUE ~ NA_character_
   )
-  age_interval <- c(
-    "S1" = "Embryonic",
-    "S2" = "Early fetal",
-    "S3" = "Early fetal",
-    "S4" = "Early mid-fetal",
-    "S5" = "Early mid-fetal",
-    "S6" = "Late mid-fetal",
-    "S7" = "Late fetal",
-    "S8" = "Neonatal and early infancy",
-    "S9" = "Late infancy",
-    "S10" = "Early childhood",
-    "S11" = "Middle and late childhood",
-    "S12" = "Adolescence",
-    "S13" = "Young adulthood",
-    "S14" = "Middle adulthood",
-    "S15" = "Late adulthood"
-  )
-  age_range <- c(
-    "S1" = "4-8 PCW",
-    "S2" = "8-10 PCW",
-    "S3" = "10-13 PCW",
-    "S4" = "13-16 PCW",
-    "S5" = "16-19 PCW",
-    "S6" = "19-24 PCW",
-    "S7" = "24-38 PCW",
-    "S8" = "0-0.5 years",
-    "S9" = "0.5-1 years",
-    "S10" = "1-6 years",
-    "S11" = "6-12 years",
-    "S12" = "12-20 years",
-    "S13" = "20-40 years",
-    "S14" = "40-60 years",
-    "S15" = "60+ years"
-  )
-  metadata$AgeIntervalID <- metadata$Stage
-  metadata$AgeInterval <- unname(age_interval[metadata$AgeIntervalID])
-  metadata$AgeRange <- unname(age_range[metadata$AgeIntervalID])
-
-  regions <- sort(unique(metadata$Brain_Region))
-  brain_region_map <- setNames(regions, regions)
-
-  # Other datasets
-  brain_region_map["Intra-temporal cortex"] <- "Temporal cortex"
-  brain_region_map["cortical plate"] <- "Cortical plate"
-  brain_region_map["Anterior cingulate cortex "] <- "Anterior cingulate cortex"
-  brain_region_map["Ganglionic eminences"] <- "Ganglionic eminence"
-
-  # HYPOMAP
-  brain_region_map["ARC"] <- "Arcuate nucleus"
-  brain_region_map["DMH"] <- "Dorsomedial hypothalamus"
-  brain_region_map["Fx/OT/ac"] <- "Fornix/Optic tract/Anterior commissure"
-  brain_region_map["LH"] <- "Lateral hypothalamus"
-  brain_region_map["LPOA"] <- "Lateral preoptic area"
-  brain_region_map["LTN"] <- "Lateral tuberal nucleus"
-  brain_region_map["MAM"] <- "Mammillary nuclei"
-  brain_region_map["ME"] <- "Median eminence"
-  brain_region_map["MPOA"] <- "Medial preoptic area"
-  brain_region_map["Perivent"] <- "Periventricular region"
-  brain_region_map["POA"] <- "Preoptic area"
-  brain_region_map["Thalamaus"] <- "Thalamus"
-  brain_region_map["PVN"] <- "Paraventricular nucleus"
-  brain_region_map["SCN"] <- "Suprachiasmatic nucleus"
-  brain_region_map["SON"] <- "Supraoptic nucleus"
-  brain_region_map["TMN"] <- "Tuberomammillary nucleus"
-  brain_region_map["Vascular"] <- "Vascular"
-  brain_region_map["Vent"] <- "Ventricle"
-  brain_region_map["VMH"] <- "Ventromedial hypothalamus"
-
-
-  # GSE204683
-  brain_region_map["BA 9/46"] <- "Frontal cortex"
-  brain_region_map["BM_9/10/46"] <- "Dorsolateral prefrontal cortex"
-
-  # GSE97942
-  brain_region_map["CBC"] <- "Cerebellum"
-  brain_region_map["FC"] <- "Frontal cortex"
-  brain_region_map["V1C"] <- "Primary visual cortex"
-
-  # GSE199762
-  # "Caudal ganglionic eminence"
-  brain_region_map["CGE"] <- "Ganglionic eminence"
-  brain_region_map["dEC"] <- "Entorhinal cortex"
-  # "Entorhinal cortex stream"
-  brain_region_map["EC Stream"] <- "Entorhinal cortex"
-  # "Lateral ganglionic eminence"
-  brain_region_map["LGE"] <- "Ganglionic eminence"
-  # "Medial ganglionic eminence"
-  brain_region_map["MGE"] <- "Ganglionic eminence"
-  h_labels <- c("H29", "H31", "H33", "H37", "H39", "H46", "H48", "H71")
-  for (h in h_labels) brain_region_map[h] <- "Entorhinal cortex"
-
-  metadata$BrainRegion <- brain_region_map[metadata$Brain_Region]
-
-  region_map <- c(
-    "Cortex" = "Cerebral cortex",
-    "Cerebral cortex" = "Cerebral cortex",
-    "Prefrontal Cortex" = "Prefrontal cortex",
-    "Prefrontal cortex" = "Prefrontal cortex",
-    "Periventricular" = "Periventricular region",
-    "Periventricular region" = "Periventricular region",
-    "Midbrain ventral" = "Ventral midbrain",
-    "Whole" = "Whole brain (prenatal)"
-  )
-  metadata$BrainRegion <- ifelse(
-    metadata$BrainRegion %in% names(region_map),
-    region_map[metadata$BrainRegion],
-    metadata$BrainRegion
-  )
+  metadata <- add_metadata_schema(metadata)
   metadata <- metadata[metadata$BrainRegion != "Choroid", ]
 
   colnames_order <- c(
     "Cells", "Dataset", "Technology", "Sequence", "Sample", "Sample_ID",
     "CellType_raw", "BrainRegion", "Stage", "DevelopmentStage",
-    "AgeIntervalID", "AgeInterval", "AgeRange", "Age", "Sex"
+    "AgeIntervalID", "AgeInterval", "AgeRange", "Age", "Sex",
+    "sequencing_modality_raw", "sequencing_modality_standardized",
+    "sequencing_technology", "age_raw", "age_value", "age_unit", "age_sort",
+    "sex_raw", "sex_standardized"
   )
   metadata$CellType_raw[is.na(metadata$CellType_raw)] <- "Unknown"
 

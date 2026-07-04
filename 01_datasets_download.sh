@@ -25,7 +25,10 @@ should_process() {
 # title: A brain cell atlas integrating single-cell transcriptomes across human brain regions
 # paper: https://doi.org/10.1038/s41591-024-03150-z
 # data: https://www.braincellatlas.org/dataSet
-
+# The workflow primarily uses the Brain Cell Atlas curated source table in
+# data/dataset_used.csv. Download scripts below are kept one dataset per file
+# with concrete source URLs where public download links are available. See
+# data/source_access_summary.tsv for public versus controlled-access status.
 
 # BICCN
 # data: https://brainscope.gersteinlab.org/integrative_files.html
@@ -35,13 +38,15 @@ should_process() {
 # pmid: https://www.ncbi.nlm.nih.gov/pubmed/37824614
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE103723
 # code:
+bash $code_dir/GSE103723.sh
 
 
 # GSE104276
-# paper: https://doi.org/10.1126/sciadv.adg3754
-# pmid: https://www.ncbi.nlm.nih.gov/pubmed/37824614
+# paper: https://doi.org/10.1038/nature25980
+# pmid: https://www.ncbi.nlm.nih.gov/pubmed/29539641
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE104276
 # code:
+bash $code_dir/GSE104276.sh
 
 
 # # GSE126836 (no age information)
@@ -59,10 +64,11 @@ should_process() {
 
 
 # GSE186538
-# paper: https://doi.org/10.1126/sciadv.adg3754
-# pmid: https://www.ncbi.nlm.nih.gov/pubmed/37824614
+# paper: https://doi.org/10.1016/j.neuron.2021.10.036
+# pmid: https://www.ncbi.nlm.nih.gov/pubmed/34798047
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186538
 # code:
+bash $code_dir/GSE186538.sh
 
 
 # GSE199762
@@ -71,6 +77,7 @@ should_process() {
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE199762
 # dbGaP, accession: https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs003509.v1.p1
 # code: https://github.com/massisnascimento/ECstream
+bash $code_dir/GSE199762.sh
 
 # GSE204684 (SCP1859, multiome: snRNA-seq + snATAC-seq)
 # data: https://singlecell.broadinstitute.org/single_cell/study/SCP1859/multi-omic-profiling-of-the-developing-human-cerebral-cortex-at-the-single-cell-level#study-download
@@ -93,18 +100,21 @@ bash $code_dir/GSE204682.sh
 # pmid: https://www.ncbi.nlm.nih.gov/pubmed/37824614
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE212606
 # code:
+bash $code_dir/GSE212606.sh
 
 
 # GSE217511
 # paper: https://doi.org/10.1038/s41467-022-34975-2
 # pmid: https://www.ncbi.nlm.nih.gov/pubmed/36509746
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE217511
+bash $code_dir/GSE217511.sh
 
 
 # GSE67835
 # paper: https://doi.org/10.1073/pnas.1507125112
 # pmid: https://www.ncbi.nlm.nih.gov/pubmed/26060301
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE67835
+bash $code_dir/GSE67835.sh
 
 
 # GSE81475
@@ -112,6 +122,7 @@ bash $code_dir/GSE204682.sh
 # pmid: https://www.ncbi.nlm.nih.gov/pubmed/27568284
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE81475
 # code:
+bash $code_dir/GSE81475.sh
 
 
 # GSE97942 (contains GSE97887 + GSE97930)
@@ -123,6 +134,7 @@ bash $code_dir/GSE204682.sh
 # GSE97887 (scTHS-seq): https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE97887
 # GSE97930 (snDrop-seq): https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE97930
 # code:
+bash $code_dir/GSE97942.sh
 
 
 # Li et al. 2018
@@ -149,9 +161,11 @@ bash $code_dir/GSE204682.sh
 # "GSE144136", "GSE202210"
 # first run BTSatlas-1.py to create compatible h5ad file
 # then run BTSatlas-2.R to split the data into multiple datasets
+bash $code_dir/BTSatlas.sh
 
 # AllenM1
 # data: https://brain-map.org/our-research/cell-types-taxonomies/cell-types-database-rna-seq-data/human-m1-10x
+bash $code_dir/AllenM1.sh
 
 
 # EGAD00001006049
@@ -174,6 +188,7 @@ bash $code_dir/GSE204682.sh
 # pmid:
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE178175
 # code:
+bash $code_dir/GSE178175.sh
 
 
 # GSE168408
@@ -181,6 +196,7 @@ bash $code_dir/GSE204682.sh
 # pmid:
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE168408
 # code:
+bash $code_dir/GSE168408.sh
 
 
 # GSE144136
@@ -188,6 +204,7 @@ bash $code_dir/GSE204682.sh
 # pmid:
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE144136
 # code:
+bash $code_dir/GSE144136.sh
 
 
 # GSE202210
@@ -195,6 +212,7 @@ bash $code_dir/GSE204682.sh
 # pmid:
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE202210
 # code:
+bash $code_dir/GSE202210.sh
 
 
 # SCR_016152
@@ -213,6 +231,7 @@ bash $code_dir/GSE204682.sh
 # )
 
 # GSE207334 (multiome: snRNA-seq + snATAC-seq)
+bash $code_dir/GSE207334.sh
 
 # Ma_et_al_2022
 
@@ -233,18 +252,21 @@ bash $code_dir/GSE204682.sh
 #   https://github.com/mrcepid-rap
 # data: https://cellxgene.cziscience.com/collections/d0941303-7ce3-4422-9249-cf31eb98c480
 # data(spatial): https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE278848
+bash $code_dir/HYPOMAP.sh
 
 
 # SomaMut
-# papaer: https://doi.org/10.1038/s41586-025-09435-8
+# paper: https://doi.org/10.1038/s41586-025-09435-8
 # code: ~
 # data: https://publications.wenglab.org/SomaMut/
+bash $code_dir/SomaMut.sh
 
 
 # PRJCA015229 (multiome: snRNA-seq + snATAC-seq, Human + Macaque)
 # paper: https://doi.org/10.1016/j.xgen.2024.100703
 # code: https://github.com/KIZ-SubLab/ACC-sn-Multiomes
 # data: https://ngdc.cncb.ac.cn/bioproject/browse/PRJCA015229
+bash $code_dir/PRJCA015229.sh
 
 
 # ROSMAP (Religious Order Study (ROS) or the Rush Memory and Aging Project (MAP))
@@ -284,3 +306,4 @@ bash $code_dir/GSE296073.sh
 # pmid: https://pubmed.ncbi.nlm.nih.gov/38781369/
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE261983
 # code:
+bash $code_dir/GSE261983.sh

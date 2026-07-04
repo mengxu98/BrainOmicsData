@@ -5,6 +5,11 @@ log_message("Start loading data...")
 data_dir <- "../../data/BrainOmicsData/raw/"
 res_dir <- "../../data/BrainOmicsData/processed/"
 
+# This table is the Brain Cell Atlas curated source list used by this workflow.
+# Most rows map to public GEO accessions, while Allen/Synapse/literature rows
+# require source-specific access paths. download/BCAtlas.sh fetches the public
+# GEO source archives for provenance; this preprocessing step consumes the
+# curated h5ad files placed under raw/<Accession>/.
 data_record <- read.csv("data/dataset_used.csv")
 accessions <- unique(data_record$Accession)
 
