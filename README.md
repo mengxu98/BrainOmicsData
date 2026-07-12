@@ -20,6 +20,8 @@ bash 03_datasets_integration.sh T
 bash 04_datasets_plotting.sh T
 ```
 
+![Overview of the integrated human brain atlas](figures/fig1.png)
+
 ScienceDB export now writes the compact reuse package to
 `../../data/BrainOmicsData/ScienceDB`. The package contains a 10X-compatible
 count matrix, corrected minimal metadata, PCA/UMAP coordinates, reader scripts
