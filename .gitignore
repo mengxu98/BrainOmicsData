@@ -4,6 +4,10 @@ figures/*
 !/figures/fig1.svg
 !/figures/fig1-night.svg
 figures_backup/
+manuscript/
+manuscript_zh/
+manuscript_revised/
+manuscript_revised_zh/
 results/
 __pycache__/
 *.py[cod]
