@@ -125,6 +125,7 @@ remote_size() {
   local url="ftp://${FTP_HOST}:${FTP_PORT}/${REMOTE_DIR}/${rel}"
   curl --silent --show-error --fail --head \
     --connect-timeout 60 \
+    --max-time 90 \
     --user "${FTP_USER}:${FTP_PASSWORD}" \
     "$url" 2>/dev/null |
     awk 'BEGIN{IGNORECASE=1} /^Content-Length:/ {gsub("\r", "", $2); print $2; exit}'
@@ -163,7 +164,7 @@ upload_file() {
   local_size="$(wc -c < "$file" | tr -d ' ')"
   remote_size_value="$(remote_size "$rel" || true)"
 
-  if [[ "$FORCE" -eq 0 && "$remote_size_value" == "$local_size" ]]; then
+  if [[ "$FORCE" -eq 0 && -n "$remote_size_value" && "$remote_size_value" == "$local_size" ]]; then
     log_message "Skipping {.file $rel} ({.val {$local_size}} bytes)"
     return 0
   fi
@@ -173,8 +174,8 @@ upload_file() {
   curl \
     --fail \
     --ftp-create-dirs \
-    --retry 50 \
-    --retry-delay 30 \
+    --retry 100 \
+    --retry-delay 60 \
     --connect-timeout 120 \
     --speed-time 900 \
     --speed-limit 256 \
@@ -182,21 +183,48 @@ upload_file() {
     --upload-file "$file" \
     "$url"
 
-  remote_size_value="$(remote_size "$rel" || true)"
-  if [[ "$remote_size_value" != "$local_size" ]]; then
-    log_message "Size mismatch after upload: {.file $rel} remote={.val {${remote_size_value:-NA}}} local={.val {$local_size}}" --message-type error
+  # The deposit server does not always answer SIZE immediately after a large
+  # transfer. Retry a few times; treat a persistently unavailable size as a
+  # warning instead of failing the whole run.
+  local attempt=1
+  while [[ "$attempt" -le 4 ]]; do
+    remote_size_value="$(remote_size "$rel" || true)"
+    if [[ -n "$remote_size_value" && "$remote_size_value" == "$local_size" ]]; then
+      break
+    fi
+    if [[ "$attempt" -lt 4 ]]; then
+      sleep 20
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  if [[ "$remote_size_value" == "$local_size" ]]; then
+    log_message "Uploaded {.file $rel}" --message-type success
+  elif [[ -z "$remote_size_value" ]]; then
+    log_message "Uploaded {.file $rel} (remote size unavailable; size check skipped)" --message-type warning
+  else
+    log_message "Size mismatch after upload: {.file $rel} remote={.val {$remote_size_value}} local={.val {$local_size}}" --message-type error
     exit 1
   fi
-  log_message "Uploaded {.file $rel}" --message-type success
 }
 
 download_remote_md5sum() {
   local out="$1"
-  curl --silent --show-error --fail \
-    --connect-timeout 60 \
-    --user "${FTP_USER}:${FTP_PASSWORD}" \
-    "ftp://${FTP_HOST}:${FTP_PORT}/${REMOTE_DIR}/md5sum.txt" \
-    --output "$out"
+  local attempt=1
+  while [[ "$attempt" -le 20 ]]; do
+    if curl --silent --show-error --fail \
+      --connect-timeout 60 \
+      --max-time 300 \
+      --user "${FTP_USER}:${FTP_PASSWORD}" \
+      "ftp://${FTP_HOST}:${FTP_PORT}/${REMOTE_DIR}/md5sum.txt" \
+      --output "$out"; then
+      return 0
+    fi
+    log_message "Retrying remote {.file md5sum.txt} download (attempt {.val $attempt}/20)" --message-type warning
+    sleep 60
+    attempt=$((attempt + 1))
+  done
+  return 1
 }
 
 changed_files_by_md5() {
