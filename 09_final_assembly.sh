@@ -24,14 +24,14 @@ if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
 fi
 cd "$code_root"
 
-if [ "$BRAINOMICS_EXECUTOR" = "hpc" ]; then
+if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
   run_root_spec=()
   if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
     run_root_spec=("RUN_ROOT=$BRAINOMICS_RUN_ROOT")
   fi
-  # hpc/hpc_integration_finalize.sbatch runs this whole stage, both the
+  # hpc/integration_finalize.sbatch runs this whole stage, both the
   # finalize and the evaluation phase.
-  brainomics_run_sbatch hpc/hpc_integration_finalize.sbatch \
+  brainomics_run_sbatch hpc/integration_finalize.sbatch \
     "OVERWRITE=$overwrite" "${run_root_spec[@]+"${run_root_spec[@]}"}"
   exit 0
 fi

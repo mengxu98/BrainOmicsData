@@ -28,7 +28,7 @@ Twelve numbered drivers run in order from the repository root:
 | 12 | `12_sciencedb_upload.sh` | Transfer the sealed package |
 
 `bash run_pipeline.sh` runs stages 01–12; `--list`, `--from`, `--to`, `--only` select subsets.
-`BRAINOMICS_EXECUTOR=local` (default) runs stages in place; `BRAINOMICS_EXECUTOR=hpc` submits the matching `hpc/*.sbatch` job.
+`BRAINOMICS_EXECUTOR=local` (default) runs stages in place; `BRAINOMICS_EXECUTOR=slurm` submits the matching `hpc/*.sbatch` job.
 
 ## Layout
 
@@ -42,7 +42,7 @@ Twelve numbered drivers run in order from the repository root:
 | `sciencedb/` | Package metadata, manifest, reader and anonymization utilities |
 | `results/` | Local analysis inputs used by the figure scripts (outside version control) |
 | `environment/` | Package locks and restore/verification scripts |
-| `hpc/` | HPC submission scripts (`hpc/*.sbatch`) and transfer helpers |
+| `hpc/` | HPC submission scripts (`hpc/*.sbatch`, site settings in `hpc/local.env`) and transfer helpers |
 | `data/` | Source access table, donor crosswalks, feature metadata |
 | `tests/` | Workflow tests and package contract checks |
 

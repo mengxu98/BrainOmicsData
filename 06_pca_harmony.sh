@@ -18,8 +18,8 @@ brainomics_require_executor
 export BRAINOMICS_RUN_ROOT
 
 for stage in pca raw_umap harmony collect; do
-  if [ "$BRAINOMICS_EXECUTOR" = "hpc" ]; then
-    brainomics_run_sbatch hpc/hpc_parallel_integration.sbatch \
+  if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
+    brainomics_run_sbatch hpc/parallel_integration.sbatch \
       "STAGE=$stage" "RUN_ROOT=$BRAINOMICS_RUN_ROOT"
   else
     brainomics_log "running stage $stage"

@@ -1,13 +1,11 @@
 #!/bin/bash
 #SBATCH -J brainomics_integration_deps
-#SBATCH -p cpu-partition
+# brainomics-partition: cpu
 #SBATCH -N 1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=32G
 #SBATCH -t 02:00:00
-#SBATCH -o /path/to/hpc/home/repositories/BrainOmicsData/hpc/logs/install_integration_deps_%j.out
-#SBATCH -e /path/to/hpc/home/repositories/BrainOmicsData/hpc/logs/install_integration_deps_%j.err
 
 set -euo pipefail
 
@@ -15,11 +13,11 @@ unset LC_ALL LC_CTYPE LANGUAGE CPLUS_INCLUDE_PATH C_INCLUDE_PATH
 export LANG=C
 module load mathlib/hdf5/1.8.20-gcc
 
-repo_dir="/path/to/hpc/home/repositories/BrainOmicsData"
-r_prefix="/path/to/hpc/home/miniforge3"
+repo_dir="${BRAINOMICS_REPO_ROOT:?run through functions/pipeline_lib.sh or set BRAINOMICS_REPO_ROOT}"
+r_prefix="${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/miniforge3"
 rscript="$r_prefix/bin/Rscript"
-r_libs_user="${R_LIBS_USER:-/path/to/hpc/home/R/library/4.5}"
-source_dir="/path/to/hpc/home/software_sources/r-cran"
+r_libs_user="${R_LIBS_USER:-${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/R/library/4.5}"
+source_dir="${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/software_sources/r-cran"
 
 export R_LIBS_USER="$r_libs_user"
 export PATH="$r_prefix/bin:$PATH"

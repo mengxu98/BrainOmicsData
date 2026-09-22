@@ -25,7 +25,7 @@ tmp/
 # ---------------------------------------------------------------------------
 # Repository scope: code and small necessary metadata only.
 # Bulk data, generated results and archives stay outside git; they are produced
-# locally, kept on server 131, or re-downloaded from the sources in
+# locally, kept on the analysis server, or re-downloaded from the sources in
 # data/source_access_summary.tsv.
 # ---------------------------------------------------------------------------
 
@@ -75,6 +75,9 @@ tmp/
 
 # Local change log.
 /DOCS/
+
+# Site-specific Slurm configuration.
+/hpc/local.env
 
 # Submission workspace snapshot.
 /submission/

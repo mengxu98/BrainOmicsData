@@ -101,7 +101,7 @@ for table in \
 done
 
 if HPC_PARALLEL_STREAMS=2 \
-  bash hpc/pull_source_file_from_hpc.sh \
+  bash hpc/pull_source_file.sh \
     EGAD00001006049 HumanFetalBrainPool.h5 >/dev/null 2>&1; then
   echo "Parallel transfer must require an explicit control-path prefix" >&2
   exit 1

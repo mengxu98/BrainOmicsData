@@ -1,22 +1,20 @@
 #!/bin/bash
 #SBATCH -J brainomics_scvi
-#SBATCH -p gpu-partition
+# brainomics-partition: gpu
 #SBATCH -N 1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --gres=gpu:1
 #SBATCH --mem=59G
 #SBATCH -t 72:00:00
-#SBATCH -o /path/to/hpc/home/repositories/BrainOmicsData/hpc/logs/scvi_%j.out
-#SBATCH -e /path/to/hpc/home/repositories/BrainOmicsData/hpc/logs/scvi_%j.err
 
 set -euo pipefail
 
-repo_dir="/path/to/hpc/home/repositories/BrainOmicsData"
-data_root="/path/to/hpc/home/data/BrainOmicsData"
+repo_dir="${BRAINOMICS_REPO_ROOT:?run through functions/pipeline_lib.sh or set BRAINOMICS_REPO_ROOT}"
+data_root="${BRAINOMICS_DATA_ROOT:?set BRAINOMICS_DATA_ROOT}"
 integration_dir="$data_root/integration_25"
-scvi_prefix="/path/to/hpc/home/envs/brainomics-scvi"
-runtime_lib_dir="/path/to/hpc/home/software_sources/lib/brainomics-scvi-runtime"
+scvi_prefix="${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/envs/brainomics-scvi"
+runtime_lib_dir="${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/software_sources/lib/brainomics-scvi-runtime"
 overwrite="${OVERWRITE:-F}"
 run_dir="$integration_dir/run"
 

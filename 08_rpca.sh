@@ -17,8 +17,8 @@ brainomics_require_executor
   brainomics_die "set BRAINOMICS_RUN_ROOT to the run directory holding pipeline/ and integration/"
 export BRAINOMICS_RUN_ROOT
 
-if [ "$BRAINOMICS_EXECUTOR" = "hpc" ]; then
-  brainomics_run_sbatch hpc/hpc_parallel_integration.sbatch \
+if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
+  brainomics_run_sbatch hpc/parallel_integration.sbatch \
     "STAGE=rpca" "RUN_ROOT=$BRAINOMICS_RUN_ROOT"
   exit 0
 fi

@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-dataset="${1:?Usage: pull_source_file_from_hpc.sh <dataset> <filename> [expected_bytes]}"
-filename="${2:?Usage: pull_source_file_from_hpc.sh <dataset> <filename> [expected_bytes]}"
+dataset="${1:?Usage: pull_source_file.sh <dataset> <filename> [expected_bytes]}"
+filename="${2:?Usage: pull_source_file.sh <dataset> <filename> [expected_bytes]}"
 requested_bytes="${3:-}"
 
 case "$dataset" in
@@ -23,11 +23,12 @@ case "$filename" in
 esac
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -f "$repo_dir/hpc/local.env" ] && source "$repo_dir/hpc/local.env"
 source "$repo_dir/functions/utils.sh"
 data_root="${BRAINOMICS_DATA_ROOT:-$HOME/data/BrainOmicsData}"
-hpc_data_root="/path/to/hpc/home/data/BrainOmicsData"
-hpc_host="${HPC_HOST:-user@login-host}"
-hpc_port="${HPC_PORT:-22}"
+hpc_data_root="${HPC_DATA_ROOT:-${BRAINOMICS_HPC_DATA_ROOT:-${BRAINOMICS_DATA_ROOT:?set BRAINOMICS_DATA_ROOT or BRAINOMICS_HPC_DATA_ROOT}}}"
+hpc_host="${HPC_HOST:-${BRAINOMICS_HPC_HOST:?set BRAINOMICS_HPC_HOST in hpc/local.env}}"
+hpc_port="${HPC_PORT:-${BRAINOMICS_HPC_PORT:-22}}"
 known_hosts="${HPC_KNOWN_HOSTS:-$HOME/.ssh/known_hosts_brainomics_hpc}"
 control_path="${HPC_CONTROL_PATH:-}"
 control_path_prefix="${HPC_CONTROL_PATH_PREFIX:-}"

@@ -12,9 +12,9 @@ source "functions/utils.sh"
 cd "$BRAINOMICS_REPO_ROOT"
 brainomics_require_executor
 
-if [ "$BRAINOMICS_EXECUTOR" = "hpc" ]; then
-  brainomics_run_sbatch hpc/hpc_install_integration_dependencies.sbatch
-  brainomics_run_sbatch hpc/hpc_install_scvi.sbatch
+if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
+  brainomics_run_sbatch hpc/install_integration_dependencies.sbatch
+  brainomics_run_sbatch hpc/install_scvi.sbatch
   exit 0
 fi
 

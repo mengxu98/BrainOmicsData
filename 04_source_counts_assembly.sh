@@ -15,7 +15,7 @@ source "functions/utils.sh"
 cd "$BRAINOMICS_REPO_ROOT"
 brainomics_require_executor
 
-if [ "$BRAINOMICS_EXECUTOR" = "hpc" ]; then
+if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
   brainomics_die "count reconstruction runs on the storage host; use BRAINOMICS_EXECUTOR=local"
 fi
 

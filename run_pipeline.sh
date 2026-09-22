@@ -8,7 +8,7 @@
 #   bash run_pipeline.sh --list             # stage numbers and files
 #
 # BRAINOMICS_EXECUTOR=local (default) runs every stage in place.
-# BRAINOMICS_EXECUTOR=hpc submits hpc/*.sbatch and waits for each job.
+# BRAINOMICS_EXECUTOR=slurm submits hpc/*.sbatch and waits for each job.
 #
 set -euo pipefail
 
