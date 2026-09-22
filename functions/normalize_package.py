@@ -26,7 +26,7 @@ FIELD_DEFINITIONS = {
  'Donor_ID': 'Public donor identifier; shared donors reconciled across sources',
  'Library_ID': 'Public library identifier; blank when unavailable',
  'BrainRegion': 'Standardized anatomical region',
- 'Age': 'Reported age with units; ranges remain ranges',
+ 'Age': 'Reported age as provided by the source; units and ranges retained as reported',
  'Sex': 'Source-standardized sex; unresolved values are left blank',
  'Cluster': 'RPCA cluster, C0-C74',
  'seurat_clusters': 'Numeric part of Cluster, 0-74',
