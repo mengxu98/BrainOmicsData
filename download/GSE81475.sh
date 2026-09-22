@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Download script for GSE81475 data
-# paper: https://doi.org/10.1038/s41467-022-34975-2
-# pmid: https://www.ncbi.nlm.nih.gov/pubmed/36509746
+# paper: https://doi.org/10.1016/j.celrep.2016.08.038
+# pmid: https://www.ncbi.nlm.nih.gov/pubmed/27568284
 # data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE81475
 
 

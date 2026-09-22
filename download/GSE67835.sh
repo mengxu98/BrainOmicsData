@@ -15,6 +15,7 @@ log_message "Starting GSE67835 data download..."
 
 DOWNLOAD_LIST="
 https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE67835&format=file|GSE67835_RAW.tar|0
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE67835&targ=gsm&form=text&view=full|GSE67835_gsm.soft.txt|0
 "
 
 # Perform batch download

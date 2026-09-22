@@ -1,0 +1,28 @@
+#!/usr/bin/env Rscript
+# Genuine small algorithm execution; generated counts are software test data.
+suppressPackageStartupMessages({library(Seurat);library(Matrix)})
+args<-commandArgs(TRUE);stopifnot(length(args)==1);out<-args[1];dir.create(out,recursive=TRUE,showWarnings=FALSE)
+set.seed(20260730)
+x<-matrix(rpois(600*360,lambda=2),600,360,dimnames=list(paste0('g',1:600),paste0('c',1:360)))
+state<-rep(rep(1:3,each=60),2);batch<-rep(c('A','B'),each=180)
+for(k in 1:3)x[(k-1)*50+1:50,state==k]<-x[(k-1)*50+1:50,state==k]+6
+x[201:250,batch=='B']<-x[201:250,batch=='B']+3
+x<-as(x,'dgCMatrix');obj<-CreateSeuratObject(x);obj$batch<-batch;obj$state<-as.character(state)
+parts<-SplitObject(obj,split.by='batch')
+parts<-lapply(parts,function(z){z<-NormalizeData(z,verbose=FALSE);z<-FindVariableFeatures(z,nfeatures=300,verbose=FALSE);z<-ScaleData(z,verbose=FALSE);RunPCA(z,npcs=20,verbose=FALSE)})
+features<-SelectIntegrationFeatures(parts,nfeatures=300)
+anchors<-FindIntegrationAnchors(parts,anchor.features=features,reduction='rpca',dims=1:10,k.anchor=5,verbose=FALSE)
+merged<-IntegrateData(anchors,dims=1:10,k.weight=30,verbose=FALSE)
+DefaultAssay(merged)<-'integrated';merged<-ScaleData(merged,verbose=FALSE);merged<-RunPCA(merged,npcs=10,verbose=FALSE)
+rpca<-Embeddings(merged,'pca')
+obj<-NormalizeData(obj,verbose=FALSE);obj<-FindVariableFeatures(obj,nfeatures=300,verbose=FALSE);obj<-ScaleData(obj,verbose=FALSE);obj<-RunPCA(obj,npcs=10,verbose=FALSE)
+raw<-Embeddings(obj,'pca');obj<-harmony::RunHarmony(obj,group.by.vars='batch',dims.use=1:10,verbose=FALSE)
+harm<-Embeddings(obj,'harmony')
+for(z in list(raw,rpca,harm))stopifnot(nrow(z)==360,ncol(z)==10,all(is.finite(z)),setequal(rownames(z),colnames(x)))
+stopifnot(max(abs(raw-rpca[rownames(raw),]))>1e-6,max(abs(raw-harm[rownames(raw),]))>1e-6)
+obj<-FindNeighbors(obj,reduction='harmony',dims=1:10,verbose=FALSE);obj<-FindClusters(obj,resolution=0.5,random.seed=20260730,verbose=FALSE)
+writeMM(x,file.path(out,'counts.mtx'));writeLines(colnames(x),file.path(out,'cells.txt'));writeLines(rownames(x),file.path(out,'genes.txt'))
+write.table(data.frame(Cell=colnames(x),Batch=batch,State=state),file.path(out,'metadata.tsv'),sep='\t',quote=FALSE,row.names=FALSE)
+saveRDS(list(Raw=raw,RPCA=rpca,Harmony=harm),file.path(out,'embeddings.rds'))
+writeLines(capture.output(sessionInfo()),file.path(out,'sessionInfo.txt'))
+writeLines('PASS: actual normalization, HVG, PCA, RPCA anchors/integration, Harmony, neighbors and clustering on 360 synthetic cells; no biological performance inference.',file.path(out,'R_SUCCESS'))

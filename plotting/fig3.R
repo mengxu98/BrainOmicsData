@@ -1,256 +1,292 @@
-source("functions/prepare_env.R")
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(scop)
+  library(Seurat)
+})
+
+source("functions/data_paths.R")
 source("functions/metadata_schema.R")
-source("functions/sample_schema.R")
-
-data_dir <- "../../data/BrainOmicsData/integration/"
-fig_dir <- check_dir("figures/")
-
-objects_plot <- readRDS(
-  file.path(data_dir, "objects_celltype_plot.rds")
-)
-objects_plot@meta.data <- add_metadata_schema(objects_plot@meta.data)
-objects_plot@meta.data <- add_sample_schema(objects_plot@meta.data)
-
-development_stages <- c(
-  "Embryonic",
-  "Early fetal",
-  "Early fetal",
-  "Early mid-fetal",
-  "Early mid-fetal",
-  "Late mid-fetal",
-  "Late fetal",
-  "Neonatal and early infancy",
-  "Late infancy",
-  "Early childhood",
-  "Middle and late childhood",
-  "Adolescence",
-  "Young adulthood",
-  "Middle adulthood",
-  "Late adulthood"
+source("functions/dataset_metadata.R")
+source("functions/utils.R")
+validate_annotation_statistics(
+  "../../data/BrainOmicsData/integration_25/evaluation/reference_summary"
 )
 
-objects_plot$AgeIntervalID <- factor(
-  objects_plot$AgeIntervalID,
-  levels = paste0("S", 1:15)
+result_root <- "../../data/BrainOmicsData/integration_25"
+figure_dir <- "figures"
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+summary_dir <- file.path(result_root, "evaluation", "reference_summary")
+age <- fread(file.path(summary_dir, "age_interval_summary.tsv"))
+coverage <- fread(file.path(summary_dir, "celltype_age_region_coverage.tsv"))
+assignments <- as.data.table(read_celltype_assignments())
+plot_metadata <- apply_curated_age_interval_decisions(
+  readRDS(file.path(result_root, "evaluation", "plot_metadata_slim.rds"))
 )
-objects_plot$AgeInterval <- factor(
-  objects_plot$AgeInterval,
-  levels = unique(development_stages)
-)
-
-stage_def <- data.frame(
-  AgeIntervalID = paste0("S", 1:15),
-  AgeInterval = development_stages,
-  AgeRange = c(
-    "4-8 PCW",
-    "8-10 PCW",
-    "10-13 PCW",
-    "13-16 PCW",
-    "16-19 PCW",
-    "19-24 PCW",
-    "24-38 PCW",
-    "0-0.5 years",
-    "0.5-1 years",
-    "1-6 years",
-    "6-12 years",
-    "12-20 years",
-    "20-40 years",
-    "40-60 years",
-    "60+ years"
-  ),
-  stringsAsFactors = FALSE
-)
-stage_counts <- as.data.frame(
-  table(AgeIntervalID = objects_plot$AgeIntervalID),
-  stringsAsFactors = FALSE
-)
-names(stage_counts)[2] <- "N_cells"
-stage_sample_counts <- aggregate(
-  Sample_ID ~ AgeIntervalID,
-  objects_plot@meta.data,
-  function(x) length(unique(x))
-)
-names(stage_sample_counts)[2] <- "N_samples"
-stage_def <- merge(stage_def, stage_counts, by = "AgeIntervalID", all.x = TRUE)
-stage_def <- merge(
-  stage_def,
-  stage_sample_counts,
-  by = "AgeIntervalID",
-  all.x = TRUE
-)
-stage_def$N_cells[is.na(stage_def$N_cells)] <- 0
-stage_def$N_samples[is.na(stage_def$N_samples)] <- 0
-stage_def$AgeIntervalID <- factor(
-  stage_def$AgeIntervalID,
-  levels = paste0("S", 1:15)
-)
-stage_def <- stage_def[order(stage_def$AgeIntervalID), ]
-stage_def$AgeIntervalID <- as.character(stage_def$AgeIntervalID)
-
-stage_labels <- as.matrix(
-  stage_def[, c(
-    "AgeIntervalID",
-    "AgeInterval",
-    "AgeRange",
-    "N_cells",
-    "N_samples"
-  )]
-)
-stage_labels[, "N_cells"] <- format(
-  stage_def$N_cells,
-  big.mark = ",",
-  trim = TRUE
-)
-stage_labels[, "N_samples"] <- format(
-  stage_def$N_samples,
-  big.mark = ",",
-  trim = TRUE
-)
-mat_text <- matrix(0, nrow = 15, ncol = 5)
-colnames(mat_text) <- c(
-  "Age interval ID",
-  "Age interval",
-  "Age range",
-  "Cell count",
-  "Biological samples"
-)
-rownames(mat_text) <- as.character(stage_def$AgeIntervalID)
-
-stage_table_gp <- gpar(fontsize = 9)
-stage_table_padding_mm <- 1.5
-stage_cell_fill <- "#EFF7FC"
-stage_cell_border <- "#9fbbd3ff"
-stage_text_width_mm <- function(labels) {
-  label_widths <- lapply(
-    labels,
-    function(label) grobWidth(textGrob(label, gp = stage_table_gp))
-  )
-  convertWidth(max(do.call(unit.c, label_widths)), "mm", TRUE)
+if (
+  nrow(assignments) != 2712452L ||
+    anyDuplicated(assignments$Cells) ||
+    length(unique(assignments$CellType)) != 16L
+) {
+  stop("Figure 3 assignments differ from the frozen 16-class contract")
 }
-stage_column_widths_mm <- vapply(
-  seq_len(ncol(stage_labels)),
+
+message("[fig3] Using all-cell UMAP coordinates without loading expression")
+umap <- readRDS(file.path(result_root, "evaluation", "umap_plot_data.rds"))
+cells <- as.character(umap$Cell)
+stopifnot(
+  identical(cells, assignments$Cells),
+  identical(cells, as.character(plot_metadata$Cells)),
+  !anyDuplicated(cells)
+)
+object <- CreateSeuratObject(
+  counts = Matrix::sparseMatrix(
+    i = integer(),
+    j = integer(),
+    dims = c(2L, length(cells)),
+    dimnames = list(c("placeholderA", "placeholderB"), cells)
+  ),
+  min.cells = 0L,
+  min.features = 0L
+)
+coordinates <- as.matrix(umap[, c("RPCA_1", "RPCA_2")])
+dimnames(coordinates) <- list(cells, c("UMAP_1", "UMAP_2"))
+object[["umap.rpca"]] <- CreateDimReducObject(
+  embeddings = coordinates,
+  key = "UMAP_",
+  assay = "RNA"
+)
+rm(umap, coordinates)
+gc()
+object$CellType <- assignments$CellType
+object$AgeIntervalID <- as.character(plot_metadata$AgeIntervalID)
+object$BrainRegion <- standardize_brain_region(plot_metadata$BrainRegion)
+age_levels <- paste0("S", 1:15)
+unknown_age <- is.na(object$AgeIntervalID) |
+  !object$AgeIntervalID %in% age_levels
+if (any(unknown_age)) {
+  stop("Figure 3 metadata contains unresolved age intervals")
+}
+object$AgeIntervalID <- factor(object$AgeIntervalID, levels = age_levels)
+
+age_colors <- setNames(
+  c(
+    grDevices::colorRampPalette(c("#0AA344", "#006D87"))(7),
+    grDevices::colorRampPalette(c("#2B73AF", "#003D74"))(8)
+  ),
+  age_levels
+)
+p_age_umap <- scop::CellDimPlot(
+  object,
+  reduction = "umap.rpca",
+  group.by = "AgeIntervalID",
+  palcolor = age_colors,
+  label = FALSE,
+  raster = TRUE,
+  xlab = "UMAP_1",
+  ylab = "UMAP_2",
+  theme_use = "theme_blank_axis"
+)
+ggplot2::ggsave(
+  file.path(figure_dir, "fig3_age_umap.pdf"),
+  p_age_umap,
+  device = grDevices::cairo_pdf,
+  width = 125,
+  height = 86,
+  units = "mm",
+  family = "Arial",
+  bg = "white"
+)
+
+region_levels <- sort(unique(as.character(object$BrainRegion)))
+region_index <- seq_along(region_levels)
+region_colors <- setNames(
+  grDevices::hcl(
+    h = ((region_index - 1L) * 137.508 + 15) %% 360,
+    c = rep(c(78, 64, 72), length.out = length(region_levels)),
+    l = rep(c(52, 66, 58), length.out = length(region_levels))
+  ),
+  region_levels
+)
+object$BrainRegion <- factor(object$BrainRegion, levels = region_levels)
+p_region_umap <- scop::CellDimPlot(
+  object,
+  reduction = "umap.rpca",
+  group.by = "BrainRegion",
+  palcolor = region_colors,
+  label = FALSE,
+  raster = TRUE,
+  xlab = "UMAP_1",
+  ylab = "UMAP_2",
+  theme_use = "theme_blank_axis"
+)
+ggplot2::ggsave(
+  file.path(figure_dir, "fig3_region_umap.pdf"),
+  p_region_umap,
+  device = grDevices::cairo_pdf,
+  width = 330,
+  height = 100,
+  units = "mm",
+  family = "Arial",
+  bg = "white"
+)
+
+age <- age[AgeIntervalID %in% age_levels]
+
+age$AgeIntervalID <- factor(age$AgeIntervalID, levels = age_levels)
+setorder(age, AgeIntervalID)
+age_table <- age[, .(
+  `Age interval ID` = as.character(AgeIntervalID),
+  `Age interval` = AgeInterval,
+  `Boundary` = AgeRange,
+  `Cells/nuclei` = format(Cells, big.mark = ",", scientific = FALSE),
+  `Known donors` = Known_Donors,
+  `Datasets` = Datasets,
+  `Brain regions` = Brain_Regions
+)]
+age_table <- as.data.frame(age_table, stringsAsFactors = FALSE)
+table_text_gp <- grid::gpar(fontsize = 8)
+table_padding_mm <- 1.5
+column_widths_mm <- vapply(
+  seq_len(ncol(age_table)),
   function(j) {
-    stage_text_width_mm(c(colnames(mat_text)[j], stage_labels[, j])) +
-      stage_table_padding_mm * 2
+    labels <- c(names(age_table)[j], as.character(age_table[[j]]))
+    widths <- lapply(
+      labels,
+      function(label) grid::grobWidth(grid::textGrob(label, gp = table_text_gp))
+    )
+    grid::convertWidth(max(do.call(grid::unit.c, widths)), "mm", TRUE) +
+      table_padding_mm * 2
   },
   numeric(1)
 )
-stage_color_width_mm <- 5
-stage_row_height_mm <- 5.5
-stage_header_height_mm <- 5
-stage_table_width_mm <- sum(stage_column_widths_mm)
-stage_plot_width_mm <- stage_color_width_mm + stage_table_width_mm
-stage_plot_height_mm <- stage_row_height_mm *
-  nrow(stage_labels) +
-  stage_header_height_mm
-stage_pdf_width <- (stage_plot_width_mm + 4) / 25.4
-stage_pdf_height <- (stage_plot_height_mm + 2) / 25.4
+color_width_mm <- 5
+row_height_mm <- 5.5
+header_height_mm <- 5
+table_width_mm <- sum(column_widths_mm)
+plot_width_mm <- color_width_mm + table_width_mm
+plot_height_mm <- row_height_mm * nrow(age_table) + header_height_mm
 
-draw_stage_table <- function() {
-  grid.newpage()
-  pushViewport(
-    viewport(
-      x = unit(2, "mm"),
-      y = unit(1, "mm"),
-      width = unit(stage_plot_width_mm, "mm"),
-      height = unit(stage_plot_height_mm, "mm"),
-      just = c("left", "bottom")
-    )
-  )
+draw_age_table <- function() {
+  grid::grid.newpage()
+  grid::pushViewport(grid::viewport(
+    x = grid::unit(2, "mm"),
+    y = grid::unit(1, "mm"),
+    width = grid::unit(plot_width_mm, "mm"),
+    height = grid::unit(plot_height_mm, "mm"),
+    just = c("left", "bottom")
+  ))
 
-  n_rows <- nrow(stage_labels)
-  table_left_mm <- stage_color_width_mm
-  table_bottom_mm <- stage_header_height_mm
-
-  grid.rect(
-    x = unit(0, "mm"),
-    y = unit(
-      table_bottom_mm + stage_row_height_mm * (n_rows - seq_len(n_rows)),
+  n_rows <- nrow(age_table)
+  grid::grid.rect(
+    x = grid::unit(0, "mm"),
+    y = grid::unit(
+      header_height_mm + row_height_mm * (n_rows - seq_len(n_rows)),
       "mm"
     ),
-    width = unit(stage_color_width_mm, "mm"),
-    height = unit(stage_row_height_mm, "mm"),
-    gp = gpar(
-      fill = color_stages[as.character(stage_def$AgeIntervalID)],
+    width = grid::unit(color_width_mm, "mm"),
+    height = grid::unit(row_height_mm, "mm"),
+    gp = grid::gpar(
+      fill = age_colors[as.character(age_table[["Age interval ID"]])],
       col = NA
     ),
     just = c("left", "bottom")
   )
 
-  col_left_mm <- table_left_mm
-  for (j in seq_len(ncol(stage_labels))) {
+  column_left_mm <- color_width_mm
+  for (j in seq_len(ncol(age_table))) {
     for (i in seq_len(n_rows)) {
-      grid.rect(
-        x = unit(col_left_mm, "mm"),
-        y = unit(
-          table_bottom_mm + stage_row_height_mm * (n_rows - i),
+      grid::grid.rect(
+        x = grid::unit(column_left_mm, "mm"),
+        y = grid::unit(
+          header_height_mm + row_height_mm * (n_rows - i),
           "mm"
         ),
-        width = unit(stage_column_widths_mm[j], "mm"),
-        height = unit(stage_row_height_mm, "mm"),
-        gp = gpar(fill = stage_cell_fill, col = stage_cell_border, lwd = 0.5),
+        width = grid::unit(column_widths_mm[j], "mm"),
+        height = grid::unit(row_height_mm, "mm"),
+        gp = grid::gpar(fill = "#EFF7FC", col = "#9FBBd3", lwd = 0.5),
         just = c("left", "bottom")
       )
-      grid.text(
-        stage_labels[i, j],
-        x = unit(col_left_mm + stage_table_padding_mm, "mm"),
-        y = unit(
-          table_bottom_mm + stage_row_height_mm * (n_rows - i + 0.5),
+      grid::grid.text(
+        as.character(age_table[i, j]),
+        x = grid::unit(column_left_mm + table_padding_mm, "mm"),
+        y = grid::unit(
+          header_height_mm + row_height_mm * (n_rows - i + 0.5),
           "mm"
         ),
-        gp = stage_table_gp,
+        gp = table_text_gp,
         just = "left"
       )
     }
-    grid.text(
-      colnames(mat_text)[j],
-      x = unit(col_left_mm + stage_column_widths_mm[j] / 2, "mm"),
-      y = unit(stage_header_height_mm / 2, "mm"),
-      gp = stage_table_gp
+    grid::grid.text(
+      names(age_table)[j],
+      x = grid::unit(column_left_mm + column_widths_mm[j] / 2, "mm"),
+      y = grid::unit(header_height_mm / 2, "mm"),
+      gp = table_text_gp
     )
-    col_left_mm <- col_left_mm + stage_column_widths_mm[j]
+    column_left_mm <- column_left_mm + column_widths_mm[j]
   }
-
-  popViewport()
+  grid::popViewport()
 }
+grDevices::cairo_pdf(
+  file.path(figure_dir, "fig3_age_table.pdf"),
+  width = (plot_width_mm + 4) / 25.4,
+  height = (plot_height_mm + 2) / 25.4,
+  family = "Arial",
+  onefile = FALSE
+)
+draw_age_table()
+grDevices::dev.off()
+age_celltype <- coverage[
+  AgeIntervalID %in% age_levels,
+  .(Cells = sum(Cells)),
+  by = .(CellType, AgeIntervalID)
+]
+age_celltype <- merge(
+  CJ(CellType = unique(coverage$CellType), AgeIntervalID = age_levels),
+  age_celltype,
+  by = c("CellType", "AgeIntervalID"),
+  all.x = TRUE
+)
+age_celltype[is.na(Cells), Cells := 0L]
+# The coverage table is already donor-aware.  The heatmap uses cell abundance
+# only for descriptive coverage and does not perform inferential statistics.
+stopifnot(all(is.finite(age_celltype$Cells)), all(age_celltype$Cells >= 0))
+age_celltype[, Log10_Cells := log10(pmax(Cells, 0) + 1)]
+age_celltype[, AgeIntervalID := factor(AgeIntervalID, levels = age_levels)]
+p_coverage <- ggplot(
+  age_celltype,
+  aes(x = AgeIntervalID, y = CellType, fill = Log10_Cells)
+) +
+  geom_tile(colour = "white", linewidth = 0.2) +
+  scale_fill_gradientn(
+    colours = c("#EFF7FC", "#0AA344", "#006D87", "#003D74"),
+    name = expression(log[10](cells + 1))
+  ) +
+  labs(
+    x = "Age interval ID",
+    y = "Cell type",
+    title = "Cell-type coverage across the 15 age intervals"
+  ) +
+  theme_classic(base_size = 7, base_family = "Arial") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 6.0),
+    legend.title = element_text(size = 8),
+    plot.title = element_text(size = 8, face = "bold")
+  )
+ggplot2::ggsave(
+  file.path(figure_dir, "fig3_celltype_age.pdf"),
+  p_coverage,
+  device = grDevices::cairo_pdf,
+  width = 115,
+  height = 88,
+  units = "mm",
+  family = "Arial",
+  bg = "white"
+)
 
-pdf(
-  file.path(fig_dir, "development_stage_annotation.pdf"),
-  width = stage_pdf_width,
-  height = stage_pdf_height
-)
-draw_stage_table()
-dev.off()
-
-p_brain_region <- CellDimPlot(
-  objects_plot,
-  reduction = "umap.rpca",
-  group.by = "BrainRegion",
-  palette = "simpsons",
-  label = FALSE,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank_axis"
-)
-
-color_stages2 <- color_stages[!duplicated(development_stages)]
-names(color_stages2) <- unique(development_stages)
-p_age_interval <- CellDimPlot(
-  objects_plot,
-  reduction = "umap.rpca",
-  group.by = "AgeInterval",
-  palcolor = color_stages2,
-  label = FALSE,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank_axis"
-)
-p_brain_region_stage <- p_brain_region / p_age_interval
-ggsave(
-  file.path(fig_dir, "brainregion_stage.pdf"),
-  p_brain_region_stage,
-  width = 12,
-  height = 7
-)
+message("Figure 3 individual panels completed in ", figure_dir)

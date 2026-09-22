@@ -1,0 +1,6 @@
+Dataset	Diagnosis_RNA_Group_raw	Diagnosis_Pathology_raw	Source_Cells	Source_Donors	Reader_Include
+ROSMAP	earlyAD	no	9049	2	FALSE
+ROSMAP	earlyAD	yes	124837	27	FALSE
+ROSMAP	lateAD	yes	67606	15	FALSE
+ROSMAP	nonAD	no	172683	40	TRUE
+ROSMAP	nonAD	yes	40789	8	FALSE

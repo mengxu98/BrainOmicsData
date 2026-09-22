@@ -3,7 +3,7 @@ source("functions/prepare_env.R")
 data_dir <- "../../data/BrainOmicsData/raw/GSE204683"
 res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE204683/")
 
-log_message("Start loading data...")
+thisutils::log_message("Start loading data...")
 counts <- readRDS(
   file.path(data_dir, "GSE204683_count_matrix.RDS")
 )
@@ -16,7 +16,7 @@ metadata <- read.csv(
 )
 
 donor_id_mapping <- c(
-  "4" = "LaFet1", "8" = "LaFet2", "11" = "EaFet1", "16" = "EaFet2",
+  "4" = "LaFet1", "8" = "LaFet2", "11" = "EaFet2", "16" = "EaFet1",
   "150656" = "Adult2", "150666" = "Adult1", "4413" = "Inf1", "4422" = "Inf2",
   "5936" = "Adol2", "5977" = "Child2", "6007" = "Adol1", "6032" = "Child1"
 )
@@ -32,7 +32,7 @@ metadata <- metadata[metadata$Cells %in% counts_cells, ]
 
 missing_cells <- setdiff(counts_cells, metadata$Cells)
 if (length(missing_cells) > 0) {
-  log_message(
+  thisutils::log_message(
     "Found {.val {length(missing_cells)}} cells in counts but not in metadata, creating metadata for them..."
   )
   donor_ids_missing <- sub("_.*", "", missing_cells)
@@ -100,14 +100,15 @@ column_order <- c(
   "Cells", "Dataset", "Technology", "Sequence", "Sample",
   "Sample_ID", "CellType_raw", "Brain_Region", "Region", "Age", "Sex"
 )
-metadata <- metadata[common_cells, column_order]
+metadata <- metadata[common_cells, , drop = FALSE]
+metadata <- retain_source_metadata(metadata, column_order)
 counts <- counts[, common_cells]
 object <- CreateSeuratObject(
   counts = counts,
   meta.data = metadata
 )
 
-log_message("Save data...")
+thisutils::log_message("Save data...")
 saveRDS(
   object,
   file.path(res_dir, "GSE204683_processed.rds")

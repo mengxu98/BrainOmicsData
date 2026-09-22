@@ -3,7 +3,9 @@
 args <- commandArgs(trailingOnly = TRUE)
 value_after <- function(flag, default = NULL) {
   idx <- match(flag, args)
-  if (is.na(idx) || idx == length(args)) return(default)
+  if (is.na(idx) || idx == length(args)) {
+    return(default)
+  }
   args[[idx + 1]]
 }
 
@@ -17,7 +19,7 @@ source(file.path(repo_dir, "functions", "sample_schema.R"))
 
 targets_arg <- value_after(
   "--targets",
-  "metadata_filtered.rds,objects_celltypes.rds,objects_celltype_plot.rds"
+  "metadata_filtered.rds,objects_celltype_plot.rds"
 )
 targets <- trimws(strsplit(targets_arg, ",", fixed = TRUE)[[1]])
 backup_dir_arg <- value_after("--backup-dir", "")

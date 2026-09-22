@@ -1,0 +1,33 @@
+Package	Version	Source	Reference
+R	4.5.1	R Project	https://cran.r-project.org/src/base/R-4/R-4.5.1.tar.gz
+Seurat	5.3.1	CRAN	Seurat@5.3.1
+SeuratObject	5.2.0	CRAN	SeuratObject@5.2.0
+Matrix	1.7-4	CRAN	Matrix@1.7-4
+data.table	1.17.8	CRAN	data.table@1.17.8
+R.methodsS3	1.8.2	CRAN source archive	822d5e61dad4c91e8883be2b38d7b89f87492046d0fe345704eb5d2658927c2e
+R.oo	1.27.1	CRAN source archive	5faf599cc1f027d8b80e1270aa6a43e29dccd6fee8287953f13e7ab3d94270f5
+R.utils	2.13.0	CRAN source archive	ab2043c34e129928ff85a037ce7a3f7791f245f49a55ee9a95bd7df0813bcf25
+future	1.68.0	CRAN	future@1.68.0
+future.apply	1.20.0	CRAN	future.apply@1.20.0
+harmony	2.0.5	CRAN source archive	907a3c4808656f6bad5a8e314704f92a0cb159ae298390315d5c73794d9a0c6c
+RANN	2.6.2	CRAN	RANN@2.6.2
+RcppHNSW	0.7.0	CRAN	RcppHNSW@0.7.0
+uwot	0.2.4	CRAN	uwot@0.2.4
+ggplot2	4.0.1	CRAN	ggplot2@4.0.1
+patchwork	1.3.2	CRAN	patchwork@1.3.2
+scop	0.8.9	GitHub	mengxu98/scop@f9fac0f6dbbd02b8308f77cad2e769cb1b5b2ed6
+thisplot	0.4.6	GitHub	mengxu98/thisplot@f2d628baa0968ddd7b0d6ac926521ec92dd881a3
+thisutils	0.5.0	GitHub	mengxu98/thisutils@d5e25d4d826136dbb54aa4f6cdee4ad922cda1da
+lisi	1.0	GitHub source archive plus reviewed patch	immunogenomics/LISI@a917556310d8d2c66833dcc35aa3d0f4d1b6e0f4
+reticulate	1.44.1	CRAN	reticulate@1.44.1
+digest	0.6.39	CRAN	digest@0.6.39
+jsonlite	2.0.0	CRAN	jsonlite@2.0.0
+dplyr	1.1.4	CRAN	dplyr@1.1.4
+tidyr	1.3.1	CRAN	tidyr@1.3.1
+RhpcBLASctl	0.23-42	CRAN source archive	5c889d5b69e264060b9f1f0383c447f594855b8afc15b7d76d39e4d62b946615
+igraph	2.1.4	CRAN	igraph@2.1.4
+RcppAnnoy	0.0.22	CRAN	RcppAnnoy@0.0.22
+scattermore	1.2	CRAN	scattermore@1.2
+svglite	2.2.2	CRAN	svglite@2.2.2
+ragg	1.5.2	CRAN	ragg@1.5.2
+BPCells	0.3.1	GitHub	bnprks/BPCells@v0.3.1

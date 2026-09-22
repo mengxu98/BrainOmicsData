@@ -1,0 +1,4 @@
+Dataset	Stage	From_Boundary	To_Boundary	Input_Cells	Input_Donors	Retained_Cells	Retained_Donors	Excluded_Cells	Excluded_Donors	Rule	Selection_Owner	Evidence
+ROSMAP	1a	released QC-passed RNA metadata	RNA nonAD subset	414964	92	213472	48	201492	44	ADdiag3types == nonAD	project reader diagnosis filtering	recomputed from original metadata; exact retained cell-ID equality to canonical metadata and current atlas
+ROSMAP	1b	RNA nonAD subset	processed integration input	213472	48	172683	40	40789	8	Pathologic_diagnosis_of_AD == no	project reader diagnosis filtering	recomputed from original metadata; exact retained cell-ID equality to canonical metadata and current atlas
+ROSMAP	2	processed integration input	current atlas	172683	40	172683	40	0	0	current atlas cell IDs equal the full retained reader set	processed-input-to-atlas inclusion ledger	recomputed from original metadata; exact retained cell-ID equality to canonical metadata and current atlas

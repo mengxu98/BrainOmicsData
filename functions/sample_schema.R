@@ -5,6 +5,44 @@ normalize_sample_id_value <- function(dataset, value) {
 }
 
 add_sample_schema <- function(meta) {
+  if (!"Dataset" %in% names(meta)) {
+    stop("metadata is missing required sample columns: Dataset")
+  }
+
+  canonical_required <- c(
+    "Original_Sample_ID", "Donor_ID", "Sample_ID", "Library_ID"
+  )
+  if (all(canonical_required %in% names(meta))) {
+    meta$Dataset <- as.character(meta$Dataset)
+    meta$Original_Sample_ID <- as.character(meta$Original_Sample_ID)
+    meta$Donor_ID <- as.character(meta$Donor_ID)
+    meta$Sample_ID <- as.character(meta$Sample_ID)
+    meta$Library_ID <- as.character(meta$Library_ID)
+    if (!"Original_Sample" %in% names(meta)) {
+      meta$Original_Sample <- if ("Original_Donor_ID" %in% names(meta)) {
+        as.character(meta$Original_Donor_ID)
+      } else {
+        meta$Donor_ID
+      }
+    } else {
+      meta$Original_Sample <- as.character(meta$Original_Sample)
+    }
+    if (!"Sample" %in% names(meta)) {
+      meta$Sample <- meta$Sample_ID
+    }
+    if (!"sample_schema_rule" %in% names(meta)) {
+      meta$sample_schema_rule <- rep(
+        "canonical_identifiers_preserved", nrow(meta)
+      )
+    } else {
+      rule <- trimws(as.character(meta$sample_schema_rule))
+      missing_rule <- is.na(rule) | rule == ""
+      rule[missing_rule] <- "canonical_identifiers_preserved"
+      meta$sample_schema_rule <- rule
+    }
+    return(meta)
+  }
+
   required <- c("Dataset", "Sample", "Sample_ID")
   missing <- setdiff(required, names(meta))
   if (length(missing) > 0) {
@@ -51,7 +89,7 @@ add_sample_schema <- function(meta) {
   )
   sample_schema_rule[donor_sample_only] <- "original_sample_id_is_cell_or_project_level"
 
-  cell_level_without_sample <- meta$Dataset %in% c("GSE81475", "GSE67835")
+  cell_level_without_sample <- meta$Dataset %in% c("GSE67835")
   donor_id[cell_level_without_sample] <- normalize_sample_id_value(
     dataset[cell_level_without_sample],
     "Unknown/not reported"

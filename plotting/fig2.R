@@ -1,308 +1,52 @@
-source("functions/prepare_env.R")
-source("functions/metadata_schema.R")
-
-data_dir <- "../../data/BrainOmicsData/integration/"
-fig_dir <- check_dir("figures/")
-res_dir <- check_dir("results/")
-
-objects_plot <- readRDS(
-  file.path(data_dir, "objects_celltype_plot.rds")
-)
-objects_plot@meta.data <- add_metadata_schema(objects_plot@meta.data)
-
-if (!file.exists(file.path(res_dir, "lisi_results.rds"))) {
-  lisi_data <- readRDS(file.path(data_dir, "lisi_data.rds"))
-  raw <- compute_lisi(
-    X = lisi_data[["umap_raw"]],
-    meta_data = lisi_data[["meta_data"]],
-    label_colnames = "Dataset"
-  )
-  harmony_lisi <- compute_lisi(
-    X = lisi_data[["umap_harmony"]],
-    meta_data = lisi_data[["meta_data"]],
-    label_colnames = "Dataset"
-  )
-  rpca_lisi <- compute_lisi(
-    X = lisi_data[["umap_rpca"]],
-    meta_data = lisi_data[["meta_data"]],
-    label_colnames = "Dataset"
-  )
-  lisi_results <- cbind(
-    raw,
-    harmony_lisi,
-    rpca_lisi
-  )
-  names(lisi_results) <- c("Raw", "RPCA")
-
-  saveRDS(lisi_results, file.path(res_dir, "lisi_results.rds"))
-} else {
-  lisi_results <- readRDS(file.path(res_dir, "lisi_results.rds"))
+source("plotting/config.R")
+fig2_theme <- function(base_size = 7) {
+  theme_classic(base_size = base_size, base_family = "Arial") +
+    theme(
+      axis.line = element_line(linewidth = 0.35, colour = "#2B2B2B"),
+      axis.ticks = element_line(linewidth = 0.3, colour = "#2B2B2B"),
+      axis.text = element_text(size = 7, colour = "#2B2B2B"),
+      strip.text = element_text(size = 7),
+      panel.grid.major.y = element_line(linewidth = 0.18, colour = "#E4E7EB"),
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(size = base_size + 0.8, face = "bold"),
+      plot.subtitle = element_text(size = base_size + 0.3, colour = "#4A4A4A")
+    )
 }
-
-lisi_long <- tidyr::gather(
-  lisi_results,
-  key = "Method",
-  value = "LISI"
-)
-lisi_long$Method <- factor(
-  lisi_long$Method,
-  levels = c("Raw", "RPCA")
+fig2_row_theme <- theme(
+  text = element_text(face = "plain"),
+  axis.title = element_text(size = 6, face = "plain"),
+  axis.text = element_text(size = 5.5, face = "plain"),
+  strip.text = element_text(size = 5.5, face = "plain"),
+  plot.title = element_text(size = 6.5, face = "plain")
 )
 
-lisi_long_2 <- lisi_long[lisi_long$Method %in% c("Raw", "RPCA"), ]
-lisi_long_2$Method <- factor(
-  lisi_long_2$Method,
-  levels = c("Raw", "RPCA")
-)
-
-p_lisi <- ggplot(lisi_long_2, aes(x = Method, y = LISI)) +
-  geom_boxplot(
-    aes(fill = Method),
-    width = 0.5,
-    outlier.shape = NA
-  ) +
-  scale_fill_manual(
-    values = c("Raw" = "#E41A1C", "RPCA" = "#377EB8")
-  ) +
-  labs(
-    x = "",
-    y = "LISI"
-  ) +
-  ggpubr::stat_compare_means(
-    method = "wilcox.test",
-    comparisons = list(
-      c("Raw", "RPCA")
-    ),
-    label = "p.signif",
-    step.increase = -0.12,
-    vjust = -0.22
-  ) +
-  ylim(0, max(lisi_long_2$LISI) * 1.2) +
-  theme_bw() +
-  theme(
-    legend.position = "none",
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(hjust = 0.5)
-  )
-
-marker_genes <- c(
-  # Radial glia
-  "PAX6",
-  "VIM",
-  "GLI3",
-  # Endothelial cells
-  "CLDN5",
-  "PECAM1",
-  "VWF",
-  "FLT1",
-  # Inhibitory neurons
-  "GAD1",
-  "GAD2",
-  "SLC6A1",
-  # Oligodendrocyte progenitor cells (OPCs)
-  "PDGFRA",
-  "CSPG4",
-  "OLIG1",
-  "OLIG2",
-  "SOX10",
-  # Microglia
-  "CX3CR1",
-  "P2RY12",
-  "CSF1R",
-  # Neuroblasts
-  "STMN2",
-  # Excitatory neurons
-  "SLC17A7",
-  "CAMK2A",
-  "SATB2",
-  # Astrocytes
-  "GFAP",
-  "AQP4",
-  "ALDH1L1",
-  "FGFR3",
-  "GJA1",
-  # Oligodendrocytes
-  "MOG",
-  "MAG",
-  "CLDN11"
-)
-
-Idents(objects_plot) <- "CellType"
-celltype_levels <- sort(as.character(unique(objects_plot$CellType)))
-objects_plot$Celltype <- factor(
-  objects_plot$CellType,
-  levels = celltype_levels
-)
-
-p1 <- DotPlot(
-  objects_plot,
-  features = marker_genes,
-  group.by = "seurat_clusters",
-  cols = c("gray80", "#15559A"),
-  dot.scale = 5
-) +
-  theme_bw() +
-  theme(
-    axis.text.x = element_text(angle = 30, hjust = 1),
-    legend.position = "right",
-    legend.key.width = unit(0.2, "cm"),
-    legend.key.height = unit(0.3, "cm"),
-    legend.text = element_text(size = 12)
-  ) +
-  coord_fixed()
-
-ggsave(
-  file.path(fig_dir, "dot_plot_markergenes.pdf"),
-  p1,
-  width = 9,
-  height = 28
-)
-
-p3 <- CellDimPlot(
-  objects_plot,
-  reduction = "umap.unintegrated",
-  group.by = "Dataset",
-  palette = "Set1",
-  label = FALSE,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank_axis"
-)
-
-p4 <- CellDimPlot(
-  objects_plot,
-  reduction = "umap.rpca",
-  group.by = "Dataset",
-  palette = "Set1",
-  label = FALSE,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank_axis"
-)
-p5 <- p3 +
-  p4 +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "right")
-p6 <- wrap_elements(full = p5) +
-  p_lisi +
-  plot_layout(widths = c(0.9, 0.1)) +
-  plot_annotation(
-    tag_levels = "A"
-  )
-ggsave(
-  file.path(fig_dir, "dim_dataset_lisi.pdf"),
-  p6,
-  width = 12,
-  height = 3
-)
-
-p7 <- CellDimPlot(
-  objects_plot,
-  reduction = "umap.rpca",
-  group.by = "seurat_clusters",
-  label = FALSE,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank"
-)
-
-p8 <- CellDimPlot(
-  objects_plot,
-  reduction = "umap.rpca",
-  group.by = "Celltype",
-  palcolor = color_celltypes[celltype_levels],
-  label = FALSE,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank_axis"
-)
-p9 <- p7 + p8
-ggsave(
-  file.path(fig_dir, "dim_seurat_clusters_celltype.pdf"),
-  p9,
-  width = 15,
-  height = 5
-)
-
-p13 <- FeatureDimPlot(
-  objects_plot,
-  features = marker_genes,
-  reduction = "umap.rpca",
-  ncol = 5,
-  raster = TRUE,
-  xlab = "UMAP_1",
-  ylab = "UMAP_2",
-  theme_use = "theme_blank"
-)
-ggsave(
-  file.path(fig_dir, "feature_plots.pdf"),
-  p13,
-  width = 13,
-  height = 10
-)
-
-marker_genes_split <- data.frame(
-  Celltype = c(
-    rep("Radial glia", 3),
-    rep("Endothelial cells", 4),
-    rep("Inhibitory neurons", 3),
-    rep("Oligodendrocyte progenitor cells", 5),
-    rep("Microglia", 3),
-    rep("Neuroblasts", 1),
-    rep("Excitatory neurons", 3),
-    rep("Astrocytes", 5),
-    rep("Oligodendrocytes", 3)
-  ),
-  Genes = marker_genes
-)
-celltype_levels <- sort(as.character(unique(marker_genes_split$Celltype)))
-marker_genes_split$Celltype <- factor(
-  marker_genes_split$Celltype,
-  levels = celltype_levels
-)
-objects_plot$Celltype <- factor(
-  objects_plot$Celltype,
-  levels = celltype_levels
-)
-celltype_colors <- color_celltypes[celltype_levels]
-gh <- GroupHeatmap(
-  objects_plot,
-  exp_legend_title = "Z-score",
-  features = marker_genes_split$Genes,
-  feature_split = marker_genes_split$Celltype,
-  group.by = "Celltype",
-  group_palcolor = celltype_colors,
-  cell_annotation_palcolor = celltype_colors,
-  feature_split_palcolor = celltype_colors,
-  heatmap_palette = "Spectral",
-  ,
-  heatmap_border = TRUE,
-  cell_annotation_border = FALSE,
-  feature_annotation_border = FALSE,
-  heatmap_border_palcolor = "grey",
-  heatmap_border_size = 1.5,
-  cell_annotation_border_size = 1,
-  feature_annotation_border_size = 1,
-  height = 8,
-  width = 3,
-  add_dot = TRUE,
-  dot_size = unit(6, "mm"),
-  nlabel = 0,
-  show_row_names = TRUE,
-  border = TRUE,
-  ht_params = list(
-    row_names_gp = gpar(fontface = "italic")
-  )
-)
-pdf(
-  file.path(fig_dir, "group_heatmap_markergenes.pdf"),
-  width = 9.2,
-  height = 6.7
-)
-print(gh$plot)
-dev.off()
+# Same former Figure 2 aesthetics. No inherited estimates, significance stars or resampling intervals.
+full_lisi_complete <- file.exists(file.path(doc,"tables/full_lisi/COMPLETE.json"))
+if(full_lisi_complete) {
+ all_lisi <- fread(file.path(doc,"tables/full_lisi_dataset_summary.tsv"))
+ x <- all_lisi[Space=="latent50" & Label_Scheme=="Source_Full"]
+ setnames(x,"Mean","cLISI")
+} else x <- fread(file.path(doc,"tables/full_source_clisi_all_method_dataset_summary.tsv"))
+x[,Method:=factor(Method,levels=method_levels)]
+stopifnot(nrow(x)==22L*4L,!anyDuplicated(x[,.(Dataset,Method)]))
+p_source_lisi<-ggplot(x,aes(as.integer(Method),cLISI,group=Method))+geom_boxplot(aes(fill=Method),width=.58,outlier.shape=NA,alpha=.25,linewidth=.35)+geom_point(aes(colour=Method),size=.65,alpha=.6,position=position_jitter(width=.12,height=0,seed=2026))+scale_x_continuous(breaks=1:4,labels=method_levels)+scale_colour_manual(values=method_colors,guide="none")+scale_fill_manual(values=method_colors,guide="none")+labs(x=NULL,y="Source-label cLISI",title=if(full_lisi_complete)"Source cLISI (50D)" else "Source cLISI (UMAP2)")+fig2_theme(7)+fig2_row_theme+theme(axis.text.x=element_text(angle=30,hjust=1))
+p_effect<-ggplot()+annotate("text",x=0,y=0,label="Full-cohort iLISI\nPending",size=2.2,family="Arial",colour="#64748B")+xlim(-1,1)+ylim(-1,1)+theme_void()+labs(title="Dataset mixing")+theme(plot.title=element_text(family="Arial",size=6.5))
+if(full_lisi_complete) {
+ mixing <- all_lisi[Space=="latent50" & Label_Scheme=="Dataset"]
+ stopifnot(nrow(mixing)==22L*4L,!anyDuplicated(mixing[,.(Dataset,Method)]),all(is.finite(mixing$Mean)))
+ mixing[,Method:=factor(Method,levels=method_levels)]
+ p_effect <- ggplot(mixing,aes(Method,Mean,group=Method)) +
+  geom_boxplot(aes(fill=Method),width=.58,outlier.shape=NA,alpha=.25,linewidth=.35) +
+  geom_point(aes(colour=Method),size=.65,alpha=.6,position=position_jitter(width=.12,height=0,seed=2026)) +
+  scale_colour_manual(values=method_colors,guide="none") + scale_fill_manual(values=method_colors,guide="none") +
+  labs(x=NULL,y="Dataset iLISI",title="Dataset mixing (50D)") + fig2_theme(7)+fig2_row_theme +
+  theme(axis.text.x=element_text(angle=30,hjust=1))
+}
+v<-fread(file.path(doc,"tables/age_signal/donor_structure_by_dataset.tsv"));v[,Method:=factor(Method,levels=method_levels)];ds<-v[,.(Estimate=mean(Spearman_Donor_Distance_to_Raw)),by=Method]
+p_donor<-ggplot(v,aes(Method,Spearman_Donor_Distance_to_Raw,colour=Method))+geom_point(size=.6,alpha=.4,position=position_jitter(width=.12,height=0,seed=2026))+geom_point(data=ds,aes(y=Estimate),size=1.8)+scale_colour_manual(values=method_colors,guide="none")+labs(x=NULL,y="Distance correlation with Raw",title="Donor-structure preservation")+fig2_theme(7)+fig2_row_theme+theme(axis.text.x=element_text(angle=30,hjust=1))
+age<-fread(file.path(doc,"tables/age_signal/age_metrics_summary.tsv"))[Distance=="euclidean"];age[,Method:=factor(Method,levels=method_levels)]
+folds<-fread(file.path(doc,"tables/age_signal/age_metrics_by_dataset.tsv"))[Distance=="euclidean"];folds[,Method:=factor(Method,levels=method_levels)]
+p_age<-ggplot(age,aes(Method,Dataset_Equal_MAE,colour=Method))+geom_hline(yintercept=unique(age$Dataset_Equal_Baseline_MAE),linewidth=.3,linetype=2,colour="#777777")+geom_point(data=folds,aes(y=MAE),size=.7,alpha=.5)+geom_point(size=2)+scale_colour_manual(values=method_colors,guide="none")+labs(x=NULL,y="Age prediction MAE (years)",title="Age prediction")+fig2_theme(7)+fig2_row_theme+theme(axis.text.x=element_text(angle=30,hjust=1))
+p_validation_row<-patchwork::wrap_plots(p_effect,p_source_lisi,p_donor,p_age,nrow=1,widths=c(1,1,2,1))+patchwork::plot_annotation(tag_levels=list(c("B","C","D","E")))
+p_validation_row<-p_validation_row & theme(plot.margin=margin(2,2,2,2,unit="mm"),plot.tag=element_text(family="Arial",size=9,face="plain"),plot.tag.position=c(0,1))
+ggsave("figures/fig2_validation_row.pdf",p_validation_row,width=168,height=48,units="mm",device=cairo_pdf,family="Arial",bg="white")

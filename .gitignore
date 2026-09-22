@@ -1,5 +1,84 @@
 .DS_Store
 .omicos
-figures/
-manuscript/
+figures/*
+!/figures/fig1.svg
+!/figures/fig1-night.svg
+figures_backup/
 results/
+__pycache__/
+*.py[cod]
+.venv/
+tmp/
+
+# Local utilities and backups
+/tests/test_response_source_guard.py
+/backups/
+/outputs/**/revision_*/**/*.py
+/outputs/**/revision_*/**/*.sh
+/outputs/**/reply_*/**/*.py
+/outputs/**/reviewer*/**/*.py
+
+# ---------------------------------------------------------------------------
+# Repository scope: code and small necessary metadata only.
+# Bulk data, generated results and archives stay outside git; they are produced
+# locally, kept on server 131, or re-downloaded from the sources in
+# data/source_access_summary.tsv.
+# ---------------------------------------------------------------------------
+
+# Generated outputs and staging areas
+/outputs/
+/current/
+/releases/
+/upload_packages/
+
+# Bulk data and archive formats (not source code)
+*.gz
+*.bgz
+*.zip
+*.tar
+*.tgz
+*.7z
+*.rds
+*.RDS
+*.rda
+*.RData
+*.Rdata
+*.h5
+*.hdf5
+*.h5ad
+*.loom
+*.mtx
+*.bam
+*.bai
+*.sam
+*.cram
+*.bed
+*.bigwig
+*.bw
+*.fasta
+*.fa
+*.fastq
+*.fq
+*.vcf
+*.bcf
+*.gtf
+*.gff
+*.soft
+*.ndjson
+
+# Local review store.
+/audit/
+
+# Local change log.
+/DOCS/
+
+# Submission workspace snapshot.
+/submission/
+# Local release registry.
+/CURRENT_RELEASE.json
+# Local upload registry.
+/CURRENT_UPLOAD_PACKAGE.json
+# Review tables used by the annotation work.
+/analysis/data/
+# Stray R plot output.
+/Rplots.pdf

@@ -1,0 +1,70 @@
+diff --git a/src/RcppExports.cpp b/src/RcppExports.cpp
+index 8a8a4b2..56bc345 100644
+--- a/src/RcppExports.cpp
++++ b/src/RcppExports.cpp
+@@ -7,6 +7,6 @@ using namespace Rcpp;
+ 
+ // compute_simpson_index
+-arma::vec compute_simpson_index(arma::mat& D, arma::umat& knn_idx, arma::vec& batch_labels, int n_batches, float perplexity, float tol);
++arma::vec compute_simpson_index(arma::mat& D, arma::umat& knn_idx, arma::vec& batch_labels, int n_batches, double perplexity, double tol);
+ RcppExport SEXP _lisi_compute_simpson_index(SEXP DSEXP, SEXP knn_idxSEXP, SEXP batch_labelsSEXP, SEXP n_batchesSEXP, SEXP perplexitySEXP, SEXP tolSEXP) {
+ BEGIN_RCPP
+     Rcpp::RObject rcpp_result_gen;
+@@ -16,8 +16,8 @@ BEGIN_RCPP
+     Rcpp::traits::input_parameter< arma::umat& >::type knn_idx(knn_idxSEXP);
+     Rcpp::traits::input_parameter< arma::vec& >::type batch_labels(batch_labelsSEXP);
+     Rcpp::traits::input_parameter< int >::type n_batches(n_batchesSEXP);
+-    Rcpp::traits::input_parameter< float >::type perplexity(perplexitySEXP);
+-    Rcpp::traits::input_parameter< float >::type tol(tolSEXP);
++    Rcpp::traits::input_parameter< double >::type perplexity(perplexitySEXP);
++    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+     rcpp_result_gen = Rcpp::wrap(compute_simpson_index(D, knn_idx, batch_labels, n_batches, perplexity, tol));
+     return rcpp_result_gen;
+ END_RCPP
+diff --git a/src/utils.cpp b/src/utils.cpp
+index 9f44495..f750221 100644
+--- a/src/utils.cpp
++++ b/src/utils.cpp
+@@ -1,10 +1,10 @@
+ #include "RcppArmadillo.h"
+ // [[Rcpp::depends(RcppArmadillo)]]
+ 
+-float Hbeta(arma::mat& D, float beta, arma::vec& P, int idx) {
++double Hbeta(arma::mat& D, double beta, arma::vec& P, int idx) {
+   P = arma::exp(-D.col(idx) * beta);
+-  float sumP = sum(P);
+-  float H;
++  double sumP = sum(P);
++  double H;
+   if (sumP == 0){
+     H = 0;
+     P = D.col(idx) * 0;
+@@ -30,15 +30,15 @@ arma::vec compute_simpson_index(
+   arma::umat& knn_idx,
+   arma::vec& batch_labels,
+   int n_batches,
+-  float perplexity = 15,
+-  float tol = 1e-5
++  double perplexity = 15,
++  double tol = 1e-5
+ ) {
+   int n = D.n_cols;
+   arma::vec P = arma::zeros<arma::vec>(D.n_rows);
+   arma::vec simpson = arma::zeros<arma::vec>(n);
+-  float logU = log(perplexity);
++  double logU = log(perplexity);
+   
+-  float beta, betamin, betamax, H, Hdiff;
++  double beta, betamin, betamax, H, Hdiff;
+   int tries;
+   for (int i = 0; i < n ; i++) {
+     beta = 1;
+@@ -73,7 +73,7 @@ arma::vec compute_simpson_index(
+     for (int b = 0; b < n_batches; b++) {
+       arma::uvec q = find(batch_labels.elem(knn_idx.col(i)) == b); // indices of cells belonging to batch (b)
+       if (q.n_elem > 0) {
+-        float sumP = sum(P.elem(q));
++        double sumP = sum(P.elem(q));
+         simpson.row(i) += sumP * sumP;         
+       }
+     }

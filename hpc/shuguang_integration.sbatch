@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J brainomics_integration
+#SBATCH -J brainomics_scvi_input
 #SBATCH -p cpu-partition
 #SBATCH -N 1
 #SBATCH --ntasks=1
@@ -11,16 +11,35 @@
 
 set -euo pipefail
 
-unset LC_ALL LC_CTYPE LANG LANGUAGE
+unset LC_ALL LC_CTYPE LANGUAGE CPLUS_INCLUDE_PATH C_INCLUDE_PATH
 export LANG=C
+module load mathlib/hdf5/1.8.20-gcc
 
-REPO_DIR="${REPO_DIR:-/path/to/hpc/home/repositories/BrainOmicsData}"
-RSCRIPT_DIR="${RSCRIPT_DIR:-/path/to/hpc/home/miniforge3/bin}"
-OVERWRITE="${OVERWRITE:-F}"
+repo_dir="/path/to/hpc/home/repositories/BrainOmicsData"
+r_prefix="/path/to/hpc/home/miniforge3"
+data_root="/path/to/hpc/home/data/BrainOmicsData"
+integration_dir="$data_root/integration_25"
+overwrite="${OVERWRITE:-F}"
+run_dir="$integration_dir/run"
 
-export PATH="$RSCRIPT_DIR:$PATH"
+export PATH="$r_prefix/bin:$PATH"
+export R_LIBS_USER="${R_LIBS_USER:-/path/to/hpc/home/R/library/4.5}"
+export BRAINOMICS_EXECUTOR=local
+if [ -n "${RUN_ROOT:-}" ]; then
+  export BRAINOMICS_RUN_ROOT="$RUN_ROOT"
+fi
+export BRAINOMICS_REMOVE_INTEGRATION_INTERMEDIATES=false
 
-mkdir -p "$REPO_DIR/hpc/logs"
-cd "$REPO_DIR"
+mkdir -p "$repo_dir/hpc/logs" "$run_dir"
+cd "$repo_dir"
 
-bash 03_datasets_integration.sh "$OVERWRITE"
+exit_file="$run_dir/scvi_input.exit"
+temporary_exit="${exit_file}.tmp.$$"
+rm -f "$exit_file"
+set +e
+bash 05_hvg_scvi_input.sh "$overwrite"
+status="$?"
+set -e
+printf '%s\n' "$status" > "$temporary_exit"
+mv "$temporary_exit" "$exit_file"
+exit "$status"

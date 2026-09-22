@@ -1,8 +1,9 @@
 source("functions/prepare_env.R")
+source("functions/dataset_metadata.R")
 
 res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE186538/")
 
-log_message("Start loading data...")
+thisutils::log_message("Start loading data...")
 object <- readRDS(
   file.path(res_dir, "GSE186538.rds")
 )
@@ -17,17 +18,25 @@ metadata$Sample_ID <- metadata$project_code
 metadata$CellType_raw <- metadata$original_name
 metadata$Brain_Region <- metadata$region
 metadata$Region <- metadata$subregion
-metadata$Age <- metadata$donor_age
-metadata$Age <- gsub("yr", "", metadata$Age)
-metadata$Sex <- metadata$donor_gender
-metadata$Sex <- ifelse(metadata$Sex == "F", "Female", "Male")
+metadata <- standardize_source_age_metadata(
+  metadata,
+  source_age = as.character(metadata$donor_age),
+  source_unit = "years",
+  source_reference = "Franjic et al. 2022, DOI 10.1016/j.neuron.2021.10.036"
+)
+metadata$Sex_Source_Raw <- as.character(metadata$donor_gender)
+metadata$Sex_Assignment_Method <- "source reported"
+metadata$Sex <- standardize_source_sex_value(metadata$Sex_Source_Raw)
 
 column_order <- c(
   "Cells", "Dataset", "Technology", "Sequence", "Sample",
-  "Sample_ID", "CellType_raw", "Brain_Region", "Region", "Age", "Sex"
+  "Sample_ID", "CellType_raw", "Brain_Region", "Region",
+  "Age_Source_Raw", "Age_Source_Unit", "Age_Source_Basis",
+  "Age_Source_Reference", "Age_Harmonization_Input",
+  "Age_Conversion_Formula", "Age_Conversion_Confidence",
+  "Age_Conversion_Applied", "Age", "Sex"
 )
-metadata <- metadata[, column_order]
-metadata <- na.omit(metadata)
+metadata <- retain_source_metadata(metadata, column_order)
 
 counts <- GetAssayData(object, layer = "counts")
 counts <- counts[, metadata$Cells]
@@ -36,7 +45,7 @@ object <- CreateSeuratObject(
   meta.data = metadata
 )
 
-log_message("Save data...")
+thisutils::log_message("Save data...")
 saveRDS(
   object,
   file.path(res_dir, "GSE186538_processed.rds")

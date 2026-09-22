@@ -1,0 +1,18 @@
+suppressPackageStartupMessages({library(Matrix);library(data.table)})
+root<-tempfile('mito_fixture_');dir.create(file.path(root,'raw/GSE204683'),recursive=TRUE);out<-file.path(root,'out')
+script<-normalizePath('processing/percent_mito_inventory_r_objects.R')
+run<-function(x){
+ saveRDS(x,file.path(root,'raw/GSE204683/GSE204683_count_matrix.RDS'))
+ system2(file.path(R.home('bin'),'Rscript'),c(shQuote(script),shQuote(file.path(root,'raw')),shQuote(out),'GSE204683'),stdout=FALSE,stderr=FALSE)
+}
+x<-Matrix(matrix(c(1,2,3,4, 0,1,1,8, 0,0,0,0),4,3),sparse=TRUE)
+rownames(x)<-c('MT-ND1','ICMT-DT','MTND1P23','GENE');colnames(x)<-c('A','B','C')
+stopifnot(run(x)==0L)
+q<-fread(file.path(out,'GSE204683_source_qc.tsv.gz'))
+stopifnot(identical(as.numeric(q$percent_mito),c(10,0,NA_real_)),identical(q$Status,c('COMPUTED_SOURCE_COUNTS','COMPUTED_SOURCE_COUNTS','ZERO_TOTAL')))
+x@x[1]<-0.5;stopifnot(run(x)!=0L)
+x@x[1]<- -1;stopifnot(run(x)!=0L)
+x@x[]<-0;stopifnot(run(x)==0L);q<-fread(file.path(out,'GSE204683_source_qc.tsv.gz'));stopifnot(all(is.na(q$percent_mito)),all(q$Status=='ZERO_TOTAL'))
+rownames(x)[1]<-'NOT_MITO';stopifnot(run(x)==0L);q<-fread(file.path(out,'GSE204683_source_qc.tsv.gz'));stopifnot(all(is.na(q$percent_mito)),all(q$Status=='NO_MT_FEATURES'))
+colnames(x)<-c('A','A','C');stopifnot(run(x)!=0L)
+cat('PASS: raw MT numerator; full-source denominator; exclude pseudogenes; valid zero vs NA; fractional/negative/duplicate rejection\n')

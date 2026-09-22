@@ -1,0 +1,32 @@
+Dataset	Original_Donor_ID	Global_Donor_ID	Duplicate_Group	Duplicate_Evidence	Primary_Analysis_Include	Analysis_Role	Exclusion_Reason
+GSE294786	1385	human_donor:1385	duplicate_group:1385	public donor ID match to Catching HBCC-1385	true	reference	
+Catching_2026	HBCC-1385	human_donor:1385	duplicate_group:1385	public donor ID match to GSE294786 donor 1385	false	holdout_excluded	duplicate donor retained in GSE294786 reference data
+Velmeshev_2023	1823	human_donor:1823	duplicate_group:1823	public donor ID match to Catching UMARY-1823	true	reference	
+Catching_2026	UMARY-1823	human_donor:1823	duplicate_group:1823	public donor ID match to Velmeshev donor 1823	false	holdout_excluded	duplicate donor retained in Velmeshev reference data
+Velmeshev_2023	5554	human_donor:5554	duplicate_group:5554	public donor ID match to Wang NIH-5554	true	reference	
+Wang_2025	NIH-5554	human_donor:5554	duplicate_group:5554	public donor ID match to Velmeshev donor 5554	false	reference_excluded	duplicate donor retained in Velmeshev reference data
+Velmeshev_2023	4341	human_donor:4341	duplicate_group:4341	public donor ID match to Wang NIH-4341	true	reference	
+Wang_2025	NIH-4341	human_donor:4341	duplicate_group:4341	public donor ID match to Velmeshev donor 4341	false	reference_excluded	duplicate donor retained in Velmeshev reference data
+Velmeshev_2023	5900	human_donor:5900	duplicate_group:5900	public donor ID match to Wang NIH-5900	true	reference	
+Wang_2025	NIH-5900	human_donor:5900	duplicate_group:5900	public donor ID match to Velmeshev donor 5900	false	reference_excluded	duplicate donor retained in Velmeshev reference data
+Velmeshev_2023	GW27-2-7-18	human_donor:GW27-2-7-18	duplicate_group:GW27-2-7-18	public donor ID match across Velmeshev and Wang	true	reference	
+Wang_2025	GW27-2-7-18	human_donor:GW27-2-7-18	duplicate_group:GW27-2-7-18	public donor ID match across Velmeshev and Wang	false	reference_excluded	duplicate donor retained in Velmeshev reference data
+GSE204683	5936	human_donor:5936	duplicate_group:5936	submitted 27-dataset reference contained donor 5936	true	reference	
+Velmeshev_2023	5936	human_donor:5936	duplicate_group:5936	public donor ID match to retained GSE204683 donor 5936	false	reference_excluded	duplicate donor retained in GSE204683 reference data
+GSE207334	2RT00374N	human_donor:RT00374N	duplicate_group:RT00374N	same Girgenti donor as GSE261983 RT00374N; public sample crosswalk	true	reference	
+GSE261983	RT00374N	human_donor:RT00374N	duplicate_group:RT00374N	same Girgenti donor as GSE207334 2RT00374N; public sample crosswalk	false	reference_excluded	duplicate donor retained in GSE207334
+GSE261983	RT00389N	human_donor:RT00374N	duplicate_group:RT00374N	GEO states RT00389N is a duplicate of RT00374N	false	reference_excluded	duplicate of RT00374N and overlapping GSE207334 donor
+GSE207334	RT00382N	human_donor:RT00382N	duplicate_group:RT00382N	same Girgenti donor and RNA sample as GSE261983 RT00382N	true	reference	
+GSE261983	RT00382N	human_donor:RT00382N	duplicate_group:RT00382N	same Girgenti donor and RNA sample as GSE207334 RT00382N	false	reference_excluded	duplicate donor and RNA sample retained in GSE207334
+GSE207334	RT00383N	human_donor:RT00383N	duplicate_group:RT00383N	same Girgenti donor and RNA sample as GSE261983 RT00383N	true	reference	
+GSE261983	RT00383N	human_donor:RT00383N	duplicate_group:RT00383N	same Girgenti donor and RNA sample as GSE207334 RT00383N	false	reference_excluded	duplicate donor and RNA sample retained in GSE207334
+GSE207334	RT00385N	human_donor:RT00385N	duplicate_group:RT00385N	same Girgenti donor and RNA sample as GSE261983 RT00385N	true	reference	
+GSE261983	RT00385N	human_donor:RT00385N	duplicate_group:RT00385N	same Girgenti donor and RNA sample as GSE207334 RT00385N	false	reference_excluded	duplicate donor and RNA sample retained in GSE207334
+GSE207334	RT00390N	human_donor:RT00390N	duplicate_group:RT00390N	same Girgenti donor and RNA sample as GSE261983 RT00390N	true	reference	
+GSE261983	RT00390N	human_donor:RT00390N	duplicate_group:RT00390N	same Girgenti donor and RNA sample as GSE207334 RT00390N	false	reference_excluded	duplicate donor and RNA sample retained in GSE207334
+GSE81475	HSB286	human_donor:HSB286	duplicate_group:HSB286	Li et al. prenatal cell IDs map exactly to GSE81475 GEO records from the same donor and C1 chip	true	reference	
+Li_et_al_2018	HSB286	human_donor:HSB286	duplicate_group:HSB286	all Li prenatal HSB286 cells originate from the same GSE81475 donor and C1-4 source library set	false	reference_excluded	overlapping donor and source libraries retained in GSE81475
+GSE81475	HSB303	human_donor:HSB303	duplicate_group:HSB303	Li et al. prenatal cell IDs map exactly to GSE81475 GEO records from the same donor and C1 chips	true	reference	
+Li_et_al_2018	HSB303	human_donor:HSB303	duplicate_group:HSB303	all Li prenatal HSB303 cells originate from the same GSE81475 donor and C1-20/C1-21/C1-22 source library sets	false	reference_excluded	overlapping donor and source libraries retained in GSE81475
+GSE81475	HSB313	human_donor:HSB313	duplicate_group:HSB313	Li et al. prenatal cell IDs map exactly to GSE81475 GEO records from the same donor and C1 chips	true	reference	
+Li_et_al_2018	HSB313	human_donor:HSB313	duplicate_group:HSB313	all Li prenatal HSB313 cells originate from the same GSE81475 donor and C1-29/C1-30 source library sets	false	reference_excluded	overlapping donor and source libraries retained in GSE81475

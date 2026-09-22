@@ -3,29 +3,57 @@
 args <- commandArgs(trailingOnly = TRUE)
 value_after <- function(flag, default = NULL) {
   idx <- match(flag, args)
-  if (is.na(idx) || idx == length(args)) return(default)
+  if (is.na(idx) || idx == length(args)) {
+    return(default)
+  }
   args[[idx + 1]]
 }
 
 repo_dir <- normalizePath(value_after("--repo-dir", "."), mustWork = TRUE)
 source(file.path(repo_dir, "functions", "metadata_schema.R"))
 source(file.path(repo_dir, "functions", "sample_schema.R"))
+source(file.path(repo_dir, "functions", "utils.R"))
+source(file.path(repo_dir, "sciencedb", "manifest.R"))
+source(file.path(repo_dir, "sciencedb", "package_metadata.R"))
+source(file.path(repo_dir, "sciencedb", "readers.R"))
 
 object_file <- normalizePath(
-  value_after("--object-file", "../../data/BrainOmicsData/integration/objects_celltypes.rds"),
+  value_after("--object-file", "../../data/BrainOmicsData/integration_25/objects_merged.rds"),
   mustWork = TRUE
 )
 metadata_object_file <- normalizePath(
   value_after("--metadata-object-file", object_file),
   mustWork = TRUE
 )
+celltype_assignment_file <- value_after(
+  "--celltype-assignment-file",
+  "../../data/BrainOmicsData/integration_25/annotation/celltype_assignments.rds"
+)
+if (nzchar(celltype_assignment_file)) {
+  celltype_assignment_file <- normalizePath(
+    celltype_assignment_file,
+    mustWork = TRUE
+  )
+}
 out_dir <- value_after("--out-dir", "../../data/BrainOmicsData/ScienceDB")
 assay <- value_after("--assay", "RNA")
 reduction_pca <- value_after("--pca-reduction", "integrated.rpca")
 reduction_umap <- value_after("--umap-reduction", "umap.rpca")
 reduction_unintegrated_umap <- value_after("--unintegrated-umap-reduction", "umap.unintegrated")
-lisi_file <- value_after("--lisi-file", file.path(repo_dir, "results", "lisi_results.rds"))
+lisi_file <- value_after(
+  "--lisi-file",
+  file.path(dirname(object_file), "lisi_results.rds")
+)
+rpca_latent_file <- value_after(
+  "--rpca-latent-file",
+  file.path(dirname(object_file), "annotation", "reductions", "rpca_latent.rds")
+)
+umap_plot_file <- value_after(
+  "--umap-plot-file",
+  file.path(dirname(object_file), "evaluation", "umap_plot_data.rds")
+)
 overwrite <- "--overwrite" %in% args
+reuse_expression <- "--reuse-expression" %in% args
 
 dirs <- list(
   expression = file.path(out_dir, "expression"),
@@ -61,25 +89,29 @@ if (!requireNamespace("SeuratObject", quietly = TRUE)) stop("SeuratObject is req
 if (!requireNamespace("Matrix", quietly = TRUE)) stop("Matrix is required")
 if (!assay %in% names(object@assays)) stop("missing assay: ", assay)
 
-message("Loading metadata Seurat object: ", metadata_object_file)
-metadata_object <- if (identical(metadata_object_file, object_file)) object else readRDS(metadata_object_file)
-if (!inherits(metadata_object, "Seurat")) stop("metadata object is not a Seurat object")
-meta <- metadata_object@meta.data
-meta[] <- lapply(meta, as.character)
-meta <- add_metadata_schema(meta)
-meta <- add_sample_schema(meta)
+expression_meta <- object@meta.data
+if (!"Dataset" %in% colnames(expression_meta)) {
+  stop("expression object metadata is missing Dataset")
+}
 
 counts_layers <- SeuratObject::Layers(object[[assay]], search = "^counts")
 if (length(counts_layers) == 0) stop("no counts layers found in assay ", assay)
 message("Counts layers: ", paste(counts_layers, collapse = ", "))
 
 layer_info <- lapply(counts_layers, function(layer) {
-  mat <- SeuratObject::LayerData(object[[assay]], layer = layer)
+  mat <- SeuratObject::LayerData(object[[assay]], layer = layer, fast = FALSE)
   mat <- methods::as(mat, "dgCMatrix")
+  layer_cells <- colnames(mat)
+  datasets <- unique(as.character(expression_meta[layer_cells, "Dataset"]))
+  datasets <- datasets[!is.na(datasets) & nzchar(datasets)]
+  if (length(datasets) != 1L) {
+    stop("Counts layer does not map to exactly one source dataset: ", layer)
+  }
   list(
     layer = layer,
+    dataset = datasets[[1L]],
     genes = rownames(mat),
-    cells = colnames(mat),
+    cells = layer_cells,
     nrow = nrow(mat),
     ncol = ncol(mat),
     nnz = length(mat@x)
@@ -88,16 +120,65 @@ layer_info <- lapply(counts_layers, function(layer) {
 
 features <- unique(unlist(lapply(layer_info, `[[`, "genes"), use.names = FALSE))
 cells <- unlist(lapply(layer_info, `[[`, "cells"), use.names = FALSE)
-if (anyDuplicated(cells)) stop("duplicated cell barcodes across counts layers")
-total_nnz <- sum(vapply(layer_info, `[[`, numeric(1), "nnz"))
+if (anyDuplicated(cells) || anyDuplicated(vapply(
+  layer_info, `[[`, character(1), "dataset"
+))) {
+  stop("Expression layers must contain unique cells and one unique dataset each")
+}
+frozen_assignments <- NULL
+if (nzchar(celltype_assignment_file)) {
+  message(
+    "Preflighting frozen main-cell-type assignments: ",
+    celltype_assignment_file
+  )
+  frozen_assignments <- readRDS(celltype_assignment_file)
+  required_assignment_columns <- c("Cells", "Cluster", "CellType")
+  if (!is.data.frame(frozen_assignments) ||
+    any(!required_assignment_columns %in% colnames(frozen_assignments)) ||
+    nrow(frozen_assignments) != length(cells) ||
+    anyDuplicated(frozen_assignments$Cells) ||
+    !setequal(as.character(frozen_assignments$Cells), cells)) {
+    stop("Frozen main-cell-type assignments fail the complete-cell contract")
+  }
+  assignment_index <- match(cells, as.character(frozen_assignments$Cells))
+  frozen_assignments <- frozen_assignments[
+    assignment_index, required_assignment_columns,
+    drop = FALSE
+  ]
+  if (!identical(as.character(frozen_assignments$Cells), cells) ||
+    anyNA(frozen_assignments$Cluster) || anyNA(frozen_assignments$CellType) ||
+    any(!nzchar(as.character(frozen_assignments$Cluster))) ||
+    any(!nzchar(as.character(frozen_assignments$CellType)))) {
+    stop("Frozen main-cell-type assignments could not be aligned to expression cells")
+  }
+  rm(assignment_index)
+}
+layer_nnz <- vapply(layer_info, `[[`, numeric(1), "nnz")
+total_nnz <- sum(as.double(layer_nnz))
+if (any(layer_nnz > .Machine$integer.max)) {
+  stop("At least one expression shard exceeds the dgCMatrix index limit")
+}
 message("Export dimensions: ", length(features), " genes x ", length(cells), " cells; nnz=", total_nnz)
 
-matrix_file <- file.path(dirs$expression, "matrix.mtx.gz")
-features_file <- file.path(dirs$expression, "features.tsv.gz")
-barcodes_file <- file.path(dirs$expression, "barcodes.tsv.gz")
-safe_remove(c(matrix_file, features_file, barcodes_file))
-if (file.exists(matrix_file) || file.exists(features_file) || file.exists(barcodes_file)) {
-  stop("expression files already exist; use --overwrite to replace them")
+existing_expression <- list.files(
+  dirs$expression,
+  recursive = TRUE, full.names = TRUE, all.files = TRUE,
+  no.. = TRUE
+)
+if (!reuse_expression) {
+  if (length(existing_expression) && !overwrite) {
+    stop("expression files already exist; use --overwrite to replace them")
+  }
+  if (length(existing_expression)) {
+    unlink(existing_expression, recursive = TRUE, force = TRUE)
+  }
+  dir.create(
+    file.path(dirs$expression, "shards"),
+    recursive = TRUE,
+    showWarnings = FALSE
+  )
+} else if (!length(existing_expression)) {
+  stop("--reuse-expression requires an existing expression package")
 }
 
 feature_table <- data.frame(
@@ -106,233 +187,366 @@ feature_table <- data.frame(
   feature_type = "Gene Expression",
   stringsAsFactors = FALSE
 )
-write_tsv_no_header(feature_table, features_file)
-barcodes_con <- gzfile(barcodes_file, "wt")
-writeLines(cells, barcodes_con)
-close(barcodes_con)
 
-gene_index <- seq_along(features)
-names(gene_index) <- features
-cell_offset <- 0L
-con <- gzfile(matrix_file, "wt")
-on.exit(close(con), add = TRUE)
-writeLines("%%MatrixMarket matrix coordinate real general", con)
-writeLines("% BrainOmicsData exported as 10X-compatible sparse matrix", con)
-writeLines(paste(length(features), length(cells), format(total_nnz, scientific = FALSE)), con)
-for (layer in counts_layers) {
-  message("Writing layer: ", layer)
-  mat <- SeuratObject::LayerData(object[[assay]], layer = layer)
-  mat <- methods::as(mat, "dgCMatrix")
-  s <- Matrix::summary(mat)
-  if (nrow(s) > 0) {
-    s$i <- gene_index[rownames(mat)[s$i]]
-    s$j <- s$j + cell_offset
-    utils::write.table(s[, c("i", "j", "x")], con, sep = " ", quote = FALSE, row.names = FALSE, col.names = FALSE)
+write_matrix_market_gz <- function(mat, file, block_columns = 500L) {
+  if (!inherits(mat, "dgCMatrix")) stop("Matrix Market writer requires dgCMatrix")
+  con <- gzfile(file, "wt", compression = 6L)
+  on.exit(close(con), add = TRUE)
+  writeLines("%%MatrixMarket matrix coordinate real general", con)
+  writeLines("% BrainOmicsData complete dataset-resolved raw-count shard", con)
+  writeLines(
+    paste(nrow(mat), ncol(mat), format(length(mat@x), scientific = FALSE)),
+    con
+  )
+  for (start in seq.int(1L, ncol(mat), by = block_columns)) {
+    end <- min(ncol(mat), start + block_columns - 1L)
+    first <- as.double(mat@p[[start]]) + 1
+    last <- as.double(mat@p[[end + 1L]])
+    if (last < first) next
+    positions <- seq.int(first, last)
+    columns <- rep.int(
+      seq.int(start, end), diff(mat@p[start:(end + 1L)])
+    )
+    block <- data.frame(
+      i = mat@i[positions] + 1L,
+      j = columns,
+      x = mat@x[positions]
+    )
+    utils::write.table(
+      block, con,
+      sep = " ", quote = FALSE, row.names = FALSE,
+      col.names = FALSE
+    )
+    rm(block, positions, columns)
   }
-  cell_offset <- cell_offset + ncol(mat)
-  rm(mat, s)
-  gc()
+  close(con)
+  on.exit(NULL)
 }
-close(con)
-on.exit(NULL, add = FALSE)
 
-cell_meta <- meta[cells, , drop = FALSE]
-if (anyNA(rownames(cell_meta))) stop("metadata rownames could not be matched to exported cells")
-metadata <- data.frame(
-  Cells = cell_meta$Cells,
-  Dataset = cell_meta$Dataset,
-  Technology = cell_meta$sequencing_technology,
-  Sequence = cell_meta$sequencing_modality_standardized,
-  Sample = cell_meta$Sample_ID,
-  Sample_ID = cell_meta$Sample_ID,
-  Donor_ID = cell_meta$Donor_ID,
-  Library_ID = cell_meta$Library_ID,
-  BrainRegion = cell_meta$BrainRegion,
-  Age = cell_meta$age_raw,
-  Sex = cell_meta$sex_standardized,
-  RNA_snn_res.1 = if ("RNA_snn_res.1" %in% names(cell_meta)) cell_meta$RNA_snn_res.1 else NA_character_,
-  seurat_clusters = if ("seurat_clusters" %in% names(cell_meta)) cell_meta$seurat_clusters else NA_character_,
-  CellType = if ("CellType" %in% names(cell_meta)) cell_meta$CellType else NA_character_,
-  AgeIntervalID = cell_meta$AgeIntervalID,
-  AgeInterval = cell_meta$AgeInterval,
-  AgeRange = cell_meta$AgeRange,
-  percent_mito = if ("percent.mt" %in% names(cell_meta)) cell_meta$percent.mt else NA_character_,
-  n_counts = if ("nCount_RNA" %in% names(cell_meta)) cell_meta$nCount_RNA else NA_character_,
-  n_genes = if ("nFeature_RNA" %in% names(cell_meta)) cell_meta$nFeature_RNA else NA_character_,
-  stringsAsFactors = FALSE
-)
+cell_offset <- 0
+shard_rows <- vector("list", length(layer_info))
+for (i in seq_along(layer_info)) {
+  info <- layer_info[[i]]
+  safe_dataset <- gsub("[^A-Za-z0-9_.-]+", "_", info$dataset)
+  relative_dir <- file.path(
+    "shards", sprintf("%02d_%s", i, safe_dataset)
+  )
+  shard_rows[[i]] <- data.frame(
+    Order = i,
+    Dataset = info$dataset,
+    Source_Layer = info$layer,
+    Relative_Directory = relative_dir,
+    Features = info$nrow,
+    Cells = info$ncol,
+    Nonzero_Values = as.double(info$nnz),
+    Cell_Start = cell_offset + 1,
+    Cell_End = cell_offset + info$ncol,
+    Expression_Layout_Version = sciencedb_expression_layout_version(),
+    stringsAsFactors = FALSE
+  )
+  cell_offset <- cell_offset + info$ncol
+}
+expected_shard_manifest <- do.call(rbind, shard_rows)
+if (cell_offset != length(cells) ||
+  sum(expected_shard_manifest$Nonzero_Values) != total_nnz ||
+  !identical(expected_shard_manifest$Dataset, vapply(
+    layer_info, `[[`, character(1), "dataset"
+  ))) {
+  stop("Expected expression shard manifest failed the complete-cell contract")
+}
+
+if (reuse_expression) {
+  manifest_file <- file.path(dirs$expression, "shard_manifest.tsv")
+  if (!file.exists(manifest_file)) {
+    stop("--reuse-expression requires expression/shard_manifest.tsv")
+  }
+  shard_manifest <- utils::read.delim(
+    manifest_file,
+    check.names = FALSE, stringsAsFactors = FALSE
+  )
+  if (!identical(names(shard_manifest), names(expected_shard_manifest)) ||
+    nrow(shard_manifest) != nrow(expected_shard_manifest)) {
+    stop("Existing expression shard manifest has an incompatible schema")
+  }
+  numeric_columns <- c(
+    "Order", "Features", "Cells", "Nonzero_Values", "Cell_Start", "Cell_End"
+  )
+  for (column in numeric_columns) {
+    shard_manifest[[column]] <- as.numeric(shard_manifest[[column]])
+    expected_shard_manifest[[column]] <- as.numeric(
+      expected_shard_manifest[[column]]
+    )
+  }
+  if (!identical(shard_manifest, expected_shard_manifest)) {
+    stop("Existing expression shard manifest differs from the source object")
+  }
+  for (i in seq_along(layer_info)) {
+    info <- layer_info[[i]]
+    shard_dir <- file.path(
+      dirs$expression, shard_manifest$Relative_Directory[[i]]
+    )
+    shard_files <- file.path(
+      shard_dir, c("matrix.mtx.gz", "features.tsv.gz", "barcodes.tsv.gz")
+    )
+    if (any(!file.exists(shard_files)) || any(file.info(shard_files)$size <= 0)) {
+      stop("Existing expression shard is incomplete: ", info$dataset)
+    }
+    gzip_status <- system2("gzip", c("-t", shard_files))
+    if (!identical(gzip_status, 0L)) {
+      stop("Existing expression shard failed gzip integrity: ", info$dataset)
+    }
+    matrix_con <- gzfile(shard_files[[1L]], "rt")
+    matrix_header <- readLines(matrix_con, n = 3L, warn = FALSE)
+    close(matrix_con)
+    expected_header <- paste(info$nrow, info$ncol, info$nnz)
+    if (length(matrix_header) != 3L ||
+      !identical(matrix_header[[3L]], expected_header)) {
+      stop("Existing Matrix Market header differs: ", info$dataset)
+    }
+    feature_con <- gzfile(shard_files[[2L]], "rt")
+    feature_lines <- readLines(feature_con, warn = FALSE)
+    close(feature_con)
+    barcode_con <- gzfile(shard_files[[3L]], "rt")
+    barcode_lines <- readLines(barcode_con, warn = FALSE)
+    close(barcode_con)
+    feature_ids <- sub("\\t.*$", "", feature_lines)
+    if (!identical(feature_ids, info$genes) ||
+      !identical(barcode_lines, info$cells)) {
+      stop("Existing expression feature or cell order differs: ", info$dataset)
+    }
+    message(
+      "Reusing validated complete expression shard ", i, "/",
+      length(layer_info), ": ", info$dataset
+    )
+  }
+} else {
+  shard_manifest <- expected_shard_manifest
+  for (i in seq_along(layer_info)) {
+    info <- layer_info[[i]]
+    shard_dir <- file.path(
+      dirs$expression, shard_manifest$Relative_Directory[[i]]
+    )
+    dir.create(shard_dir, recursive = TRUE, showWarnings = FALSE)
+    message(
+      "Writing complete expression shard ", i, "/", length(layer_info),
+      ": ", info$dataset
+    )
+    mat <- SeuratObject::LayerData(
+      object[[assay]],
+      layer = info$layer, fast = FALSE
+    )
+    mat <- methods::as(mat, "dgCMatrix")
+    if (!identical(rownames(mat), info$genes) ||
+      !identical(colnames(mat), info$cells) || length(mat@x) != info$nnz) {
+      stop("Expression shard changed after the pre-export audit: ", info$dataset)
+    }
+    write_matrix_market_gz(mat, file.path(shard_dir, "matrix.mtx.gz"))
+    shard_features <- data.frame(
+      gene_id = rownames(mat), gene_name = rownames(mat),
+      feature_type = "Gene Expression", stringsAsFactors = FALSE
+    )
+    write_tsv_no_header(
+      shard_features, file.path(shard_dir, "features.tsv.gz")
+    )
+    barcodes_con <- gzfile(file.path(shard_dir, "barcodes.tsv.gz"), "wt")
+    writeLines(colnames(mat), barcodes_con)
+    close(barcodes_con)
+    rm(mat, shard_features)
+    gc(FALSE)
+  }
+  write_tsv(shard_manifest, file.path(dirs$expression, "shard_manifest.tsv"))
+}
+
+rm(object, expression_meta, layer_info)
+gc(FALSE)
+
+message("Loading metadata Seurat object: ", metadata_object_file)
+metadata_object <- readRDS(metadata_object_file)
+if (!inherits(metadata_object, "Seurat")) {
+  stop("metadata object is not a Seurat object")
+}
+if (ncol(metadata_object) != length(cells) ||
+  !setequal(colnames(metadata_object), cells)) {
+  stop("metadata object cells differ from the expression-cell contract")
+}
+meta <- metadata_object@meta.data
+meta[] <- lapply(meta, as.character)
+meta <- add_metadata_schema(meta)
+meta <- add_sample_schema(meta)
+
+if (!is.null(frozen_assignments)) {
+  meta[cells, "Cells"] <- cells
+  meta[cells, "Cluster"] <- as.character(frozen_assignments$Cluster)
+  meta[cells, "CellType"] <- as.character(frozen_assignments$CellType)
+  rm(frozen_assignments)
+  gc(FALSE)
+}
+
+metadata <- build_sciencedb_cell_metadata(meta, cells)
 write_tsv(metadata, file.path(dirs$metadata, "metadata.tsv.gz"))
-write_tsv(sample_schema_audit(meta), file.path(dirs$metadata, "sample_schema_audit.tsv"))
+sample_audit <- sample_schema_audit(meta)
+write_tsv(sample_audit, file.path(dirs$metadata, "sample_schema_audit.tsv"))
 
-object_meta <- meta[, setdiff(names(meta), c("Original_Sample", "Original_Sample_ID", "sample_schema_rule")), drop = FALSE]
+object_meta <- metadata
+rownames(object_meta) <- object_meta$Cells
+object_meta <- object_meta[colnames(metadata_object), , drop = FALSE]
+if (!identical(rownames(object_meta), colnames(metadata_object))) {
+  stop("The lightweight object metadata is not aligned to object cells")
+}
 metadata_object@meta.data <- object_meta
 saveRDS(metadata_object, file.path(dirs$objects, "objects_celltype_plot.rds"), compress = TRUE)
 
-dataset_summary <- aggregate(
-  Cells ~ Dataset + Technology + Sequence,
-  metadata,
-  length
+dataset_summary <- build_sciencedb_dataset_summary(meta, metadata, repo_dir)
+write_tsv(dataset_summary, file.path(dirs$metadata, "dataset_summary.tsv"))
+attrition_summary <- build_sciencedb_attrition_summary(
+  repo_dir, dataset_summary
 )
-names(dataset_summary)[4] <- "cell_count"
-donor_counts <- aggregate(Donor_ID ~ Dataset, metadata, function(x) length(unique(x)))
-names(donor_counts)[2] <- "donor_count"
-sample_counts <- aggregate(Sample_ID ~ Dataset, metadata, function(x) length(unique(x)))
-names(sample_counts)[2] <- "biological_sample_count"
-library_counts <- aggregate(Library_ID ~ Dataset, metadata, function(x) length(unique(x)))
-names(library_counts)[2] <- "library_count"
-dataset_summary <- merge(dataset_summary, donor_counts, by = "Dataset", all.x = TRUE)
-dataset_summary <- merge(dataset_summary, sample_counts, by = "Dataset", all.x = TRUE)
-dataset_summary <- merge(dataset_summary, library_counts, by = "Dataset", all.x = TRUE)
-write_tsv(dataset_summary[order(dataset_summary$Dataset), ], file.path(dirs$metadata, "dataset_summary.tsv"))
+write_tsv(
+  attrition_summary,
+  file.path(dirs$metadata, "dataset_attrition_summary.tsv")
+)
+verification_dictionary <- brainomics_verification_status_dictionary()
+write_tsv(
+  verification_dictionary,
+  file.path(dirs$metadata, "verification_status_dictionary.tsv")
+)
 write_tsv(feature_table, file.path(dirs$metadata, "feature_metadata.tsv"))
 
-write_reduction <- function(reduction, file) {
-  if (!reduction %in% names(object@reductions)) {
-    warning("missing reduction: ", reduction)
-    return(invisible(FALSE))
-  }
-  emb <- as.data.frame(object@reductions[[reduction]]@cell.embeddings)
-  emb <- emb[cells, , drop = FALSE]
-  emb <- cbind(cell_id = rownames(emb), emb)
-  write_tsv(emb, file)
-  TRUE
+if (!file.exists(rpca_latent_file) || !file.exists(umap_plot_file)) {
+  stop(
+    "Validated embedding sidecars are missing: ",
+    paste(c(rpca_latent_file, umap_plot_file)[
+      !file.exists(c(rpca_latent_file, umap_plot_file))
+    ], collapse = ", ")
+  )
 }
-unlink(file.path(dirs$embeddings, c("pca.tsv.gz", "umap.tsv.gz")))
-write_reduction(reduction_pca, file.path(dirs$embeddings, "integrated_pca.tsv.gz"))
-write_reduction(reduction_umap, file.path(dirs$embeddings, "integrated_umap.tsv.gz"))
-write_reduction(reduction_unintegrated_umap, file.path(dirs$embeddings, "unintegrated_umap.tsv.gz"))
-
-if (file.exists(lisi_file)) {
-  lisi <- readRDS(lisi_file)
-  lisi <- as.data.frame(lisi)
-  lisi <- lisi[cells, , drop = FALSE]
-  lisi <- cbind(cell_id = rownames(lisi), lisi)
-  write_tsv(lisi, file.path(dirs$validation, "lisi.tsv.gz"))
+rpca_latent <- readRDS(rpca_latent_file)
+if (!is.matrix(rpca_latent) || nrow(rpca_latent) != length(cells) ||
+  ncol(rpca_latent) != 50L || !identical(rownames(rpca_latent), cells) ||
+  any(!is.finite(rpca_latent))) {
+  stop("Validated RPCA latent sidecar differs from the expression-cell contract")
 }
-
-read_seurat <- c(
-  "#!/usr/bin/env Rscript",
-  "",
-  "suppressPackageStartupMessages({",
-  "  library(Matrix)",
-  "  library(Seurat)",
-  "})",
-  "",
-  "args <- commandArgs(trailingOnly = TRUE)",
-  "cmd <- commandArgs(FALSE)",
-  "file_arg <- grep('^--file=', cmd, value = TRUE)",
-  "script_file <- if (length(file_arg) > 0) normalizePath(sub('^--file=', '', file_arg[[1]])) else NA_character_",
-  "package_dir <- if (length(args) >= 1) args[[1]] else if (!is.na(script_file)) dirname(dirname(script_file)) else getwd()",
-  "package_dir <- normalizePath(package_dir, mustWork = TRUE)",
-  "",
-  "expr_dir <- file.path(package_dir, 'expression')",
-  "metadata_file <- file.path(package_dir, 'metadata', 'metadata.tsv.gz')",
-  "integrated_umap_file <- file.path(package_dir, 'embeddings', 'integrated_umap.tsv.gz')",
-  "integrated_pca_file <- file.path(package_dir, 'embeddings', 'integrated_pca.tsv.gz')",
-  "unintegrated_umap_file <- file.path(package_dir, 'embeddings', 'unintegrated_umap.tsv.gz')",
-  "",
-  "counts <- ReadMtx(",
-  "  mtx = file.path(expr_dir, 'matrix.mtx.gz'),",
-  "  features = file.path(expr_dir, 'features.tsv.gz'),",
-  "  cells = file.path(expr_dir, 'barcodes.tsv.gz'),",
-  "  feature.column = 2",
-  ")",
-  "metadata <- read.delim(metadata_file, sep = '\\t', stringsAsFactors = FALSE, check.names = FALSE)",
-  "rownames(metadata) <- metadata$Cells",
-  "metadata <- metadata[colnames(counts), , drop = FALSE]",
-  "obj <- CreateSeuratObject(counts = counts, meta.data = metadata, assay = 'RNA')",
-  "",
-  "add_reduction <- function(obj, file, key, name) {",
-  "  if (!file.exists(file)) return(obj)",
-  "  emb <- read.delim(file, sep = '\\t', stringsAsFactors = FALSE, check.names = FALSE)",
-  "  rownames(emb) <- emb$cell_id",
-  "  emb$cell_id <- NULL",
-  "  emb <- as.matrix(emb[colnames(obj), , drop = FALSE])",
-  "  colnames(emb) <- paste0(key, seq_len(ncol(emb)))",
-  "  obj[[name]] <- CreateDimReducObject(embeddings = emb, key = key, assay = DefaultAssay(obj))",
-  "  obj",
-  "}",
-  "obj <- add_reduction(obj, integrated_pca_file, 'IRPCA_', 'integrated_pca')",
-  "obj <- add_reduction(obj, integrated_umap_file, 'UMAP_', 'integrated_umap')",
-  "obj <- add_reduction(obj, unintegrated_umap_file, 'RAWUMAP_', 'unintegrated_umap')",
-  "obj"
+rpca_table <- data.frame(
+  cell_id = rownames(rpca_latent), rpca_latent,
+  check.names = FALSE, stringsAsFactors = FALSE
 )
-writeLines(read_seurat, file.path(dirs$scripts, "read_seurat.R"))
+rpca_output_columns <- ncol(rpca_table)
+write_tsv(rpca_table, file.path(dirs$embeddings, "integrated_pca.tsv.gz"))
+rm(rpca_latent, rpca_table)
+gc(FALSE)
 
-read_h5ad <- c(
-  "#!/usr/bin/env python3",
-  "from pathlib import Path",
-  "import sys",
-  "import pandas as pd",
-  "import scanpy as sc",
-  "",
-  "package_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]",
-  "expr_dir = package_dir / 'expression'",
-  "adata = sc.read_10x_mtx(expr_dir, var_names='gene_symbols', make_unique=True)",
-  "metadata = pd.read_csv(package_dir / 'metadata' / 'metadata.tsv.gz', sep='\\t')",
-  "metadata = metadata.set_index('Cells').loc[adata.obs_names]",
-  "adata.obs = metadata",
-  "",
-  "def add_embedding(name, key):",
-  "    path = package_dir / 'embeddings' / f'{name}.tsv.gz'",
-  "    if not path.exists():",
-  "        return",
-  "    emb = pd.read_csv(path, sep='\\t').set_index('cell_id').loc[adata.obs_names]",
-  "    adata.obsm[key] = emb.to_numpy()",
-  "",
-  "add_embedding('integrated_pca', 'X_integrated_pca')",
-  "add_embedding('integrated_umap', 'X_integrated_umap')",
-  "add_embedding('unintegrated_umap', 'X_unintegrated_umap')",
-  "if len(sys.argv) > 2:",
-  "    adata.write_h5ad(sys.argv[2])",
-  "else:",
-  "    print(adata)",
-  ""
-)
-writeLines(read_h5ad, file.path(dirs$scripts, "read_h5ad.py"))
-
-reference_audit <- file.path(repo_dir, "manuscript", "revised_assets", "reference_audit.tsv")
-if (file.exists(reference_audit)) {
-  file.copy(reference_audit, file.path(dirs$provenance, "references.tsv"), overwrite = TRUE)
+umap_plot <- readRDS(umap_plot_file)
+required_umap_columns <- c("Cell", "Raw_1", "Raw_2", "RPCA_1", "RPCA_2")
+if (!is.data.frame(umap_plot) || nrow(umap_plot) != length(cells) ||
+  any(!required_umap_columns %in% colnames(umap_plot)) ||
+  !identical(as.character(umap_plot$Cell), cells) ||
+  any(!is.finite(as.matrix(umap_plot[, required_umap_columns[-1L]])))) {
+  stop("Validated UMAP plotting sidecar differs from the expression-cell contract")
 }
-
-readme <- c(
-  "# An integrated single-cell and single-nucleus transcriptomic dataset of the human brain across age intervals",
-  "",
-  "This package provides a compact, directly reusable release of an integrated human brain scRNA-seq and snRNA-seq dataset across age intervals.",
-  "",
-  "## Contents",
-  "",
-  "- `expression/matrix.mtx.gz`, `expression/features.tsv.gz`, `expression/barcodes.tsv.gz`: 10X-compatible count matrix.",
-        "- `metadata/metadata.tsv.gz`: minimal cell-level metadata using corrected harmonized labels.",
-        "- `metadata/sample_schema_audit.tsv`: donor, biological-sample and library-count audit by source dataset.",
-  "- `embeddings/integrated_pca.tsv.gz` and `embeddings/integrated_umap.tsv.gz`: RPCA-integrated PCA and UMAP coordinates.",
-  "- `embeddings/unintegrated_umap.tsv.gz`: pre-integration UMAP coordinates used for integration comparison.",
-  "- `validation/lisi.tsv.gz`: per-cell dataset-label LISI values for raw and RPCA embeddings.",
-  "- `objects/objects_celltype_plot.rds`: lightweight Seurat object for plotting, metadata inspection and cell-type annotation reuse.",
-  "- `scripts/read_seurat.R` and `scripts/read_h5ad.py`: example readers for R and Python.",
-  "- `provenance/references.tsv`: source dataset references, access links and citation provenance.",
-  "",
-        "The `Sequence` field is standardized to `scRNA-seq` or `snRNA-seq`; `Technology` records sequencing technology; `Sex` is standardized to `Female`, `Male` or `Not reported`. `Sample` is retained as the biological-sample field and matches `Sample_ID`; `Donor_ID`, `Sample_ID` and `Library_ID` separate donor/sample/library levels. Source-label provenance and curation rules are documented in `metadata/sample_schema_audit.tsv`.",
-  "",
-  "The expression matrix contains raw count values from Seurat counts layers. `percent_ribo` is not exported because it cannot be reliably reconstructed for the current integrated object.",
-  "",
-  "The lightweight Seurat object in `objects/` is provided for convenient metadata, clustering, embedding and cell-type visualization workflows. It is not the full raw-count expression object; users requiring complete expression values should start from the 10X-compatible files in `expression/`."
+write_tsv(
+  data.frame(
+    cell_id = umap_plot$Cell,
+    UMAP_1 = umap_plot$RPCA_1,
+    UMAP_2 = umap_plot$RPCA_2,
+    stringsAsFactors = FALSE
+  ),
+  file.path(dirs$embeddings, "integrated_umap.tsv.gz")
 )
-writeLines(readme, file.path(out_dir, "README.md"))
+write_tsv(
+  data.frame(
+    cell_id = umap_plot$Cell,
+    UMAP_1 = umap_plot$Raw_1,
+    UMAP_2 = umap_plot$Raw_2,
+    stringsAsFactors = FALSE
+  ),
+  file.path(dirs$embeddings, "unintegrated_umap.tsv.gz")
+)
+rm(umap_plot)
+gc(FALSE)
 
-manifest_files <- list.files(out_dir, recursive = TRUE, full.names = TRUE)
-manifest_files <- manifest_files[file.info(manifest_files)$isdir == FALSE]
-manifest_files <- manifest_files[!basename(manifest_files) %in% c("file_manifest.tsv", "md5sum.txt")]
-rel <- sub(paste0("^", gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", normalizePath(out_dir, mustWork = TRUE)), "/?"), "", normalizePath(manifest_files))
-manifest <- data.frame(
-  path = rel,
-  file_name = basename(rel),
-  size_bytes = as.numeric(file.info(manifest_files)$size),
-  md5 = unname(tools::md5sum(manifest_files)),
+if (!file.exists(lisi_file)) {
+  stop("formal integration-space LISI results are missing: ", lisi_file)
+}
+lisi <- readRDS(lisi_file)
+if (ncol(lisi) != 4L || !setequal(names(lisi), method_levels) ||
+  !identical(attr(lisi, "space"), "latent") ||
+  any(!cells %in% rownames(lisi))) {
+  stop("LISI results are not the validated latent-space four-method output")
+}
+lisi <- as.data.frame(lisi)[cells, method_levels, drop = FALSE]
+lisi <- cbind(cell_id = rownames(lisi), lisi)
+write_tsv(lisi, file.path(dirs$validation, "lisi.tsv.gz"))
+
+write_sciencedb_readers(out_dir)
+
+write_tsv(
+  build_sciencedb_references(dataset_summary),
+  file.path(dirs$provenance, "dataset_manifest.tsv")
+)
+
+write_sciencedb_readme(out_dir)
+
+dimension_audit <- data.frame(
+  path = c(
+    "expression/shard_manifest.tsv", "metadata/metadata.tsv.gz",
+    "metadata/dataset_summary.tsv", "metadata/dataset_attrition_summary.tsv",
+    "metadata/verification_status_dictionary.tsv",
+    "metadata/sample_schema_audit.tsv", "metadata/feature_metadata.tsv",
+    "validation/lisi.tsv.gz",
+    "objects/objects_celltype_plot.rds"
+  ),
+  rows = c(
+    nrow(shard_manifest), nrow(metadata), nrow(dataset_summary),
+    nrow(attrition_summary), nrow(verification_dictionary),
+    nrow(sample_audit), nrow(feature_table), nrow(lisi),
+    nrow(metadata_object)
+  ),
+  columns = c(
+    ncol(shard_manifest), ncol(metadata), ncol(dataset_summary),
+    ncol(attrition_summary), ncol(verification_dictionary),
+    ncol(sample_audit), ncol(feature_table), ncol(lisi),
+    ncol(metadata_object)
+  ),
+  nonzero_values = rep(NA_real_, 9L),
   stringsAsFactors = FALSE
 )
-write_tsv(manifest[order(manifest$path), ], file.path(out_dir, "file_manifest.tsv"))
-writeLines(paste(manifest$md5, manifest$path), file.path(out_dir, "md5sum.txt"))
+shard_dimension_rows <- do.call(rbind, lapply(
+  seq_len(nrow(shard_manifest)),
+  function(i) {
+    prefix <- file.path(
+      "expression", shard_manifest$Relative_Directory[[i]]
+    )
+    data.frame(
+      path = file.path(
+        prefix, c("matrix.mtx.gz", "features.tsv.gz", "barcodes.tsv.gz")
+      ),
+      rows = c(
+        shard_manifest$Features[[i]], shard_manifest$Features[[i]],
+        shard_manifest$Cells[[i]]
+      ),
+      columns = c(shard_manifest$Cells[[i]], 3, 1),
+      nonzero_values = c(
+        shard_manifest$Nonzero_Values[[i]], NA_real_, NA_real_
+      ),
+      stringsAsFactors = FALSE
+    )
+  }
+))
+dimension_audit <- rbind(dimension_audit, shard_dimension_rows)
+dimension_audit <- rbind(
+  dimension_audit,
+  data.frame(
+    path = c(
+      "embeddings/integrated_pca.tsv.gz",
+      "embeddings/integrated_umap.tsv.gz",
+      "embeddings/unintegrated_umap.tsv.gz"
+    ),
+    rows = rep(length(cells), 3L),
+    columns = c(rpca_output_columns, 3L, 3L),
+    nonzero_values = rep(NA_real_, 3L),
+    stringsAsFactors = FALSE
+  )
+)
+write_release_manifest(out_dir, dimension_audit)
 
 message("Clean ScienceDB package written to: ", out_dir)

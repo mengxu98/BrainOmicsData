@@ -1,0 +1,20 @@
+Package	Version	Source	Reference
+R	4.4.3	R Project	https://cran.r-project.org/src/base/R-4/R-4.4.3.tar.gz
+Seurat	5.5.0	CRAN	Seurat@5.5.0
+SeuratObject	5.4.0	CRAN	SeuratObject@5.4.0
+Matrix	1.7-4	CRAN	Matrix@1.7-4
+data.table	1.18.4	CRAN	data.table@1.18.4
+future	1.70.0	CRAN	future@1.70.0
+future.apply	1.20.2	CRAN	future.apply@1.20.2
+BPCells	0.3.1	GitHub	bnprks/BPCells@v0.3.1
+readxl	1.4.5	CRAN	readxl@1.4.5
+R.utils	2.13.0	CRAN	R.utils@2.13.0
+dplyr	1.2.1	CRAN	dplyr@1.2.1
+digest	0.6.39	CRAN	digest@0.6.39
+jsonlite	2.0.0	CRAN	jsonlite@2.0.0
+thisutils	0.4.9	GitHub	mengxu98/thisutils@75dcf0f3537e5f59c2ab7d2c2ec4fee56a6054b5
+scop	0.9.0	GitHub	mengxu98/scop@9149216d10b654f14315f834aadb86974d9709e4
+thisplot	0.4.6	GitHub	mengxu98/thisplot@f2d628baa0968ddd7b0d6ac926521ec92dd881a3
+reticulate	1.46.0	CRAN	reticulate@1.46.0
+rhdf5	2.50.2	Bioconductor	rhdf5@2.50.2
+

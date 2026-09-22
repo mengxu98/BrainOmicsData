@@ -1,9 +1,10 @@
 source("functions/prepare_env.R")
+source("functions/dataset_metadata.R")
 
 data_dir <- "../../data/BrainOmicsData/raw/GSE217511/GSE217511"
 res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE217511/")
 
-log_message("Start loading data...")
+thisutils::log_message("Start loading data...")
 
 metadata_dir <- "../../data/BrainOmicsData/raw/GSE217511"
 metadata_files <- list.files(
@@ -107,7 +108,7 @@ for (meta_file in names(all_metadata_list)) {
 combined_metadata <- do.call(rbind, combined_metadata_list)
 
 if (any(duplicated(rownames(combined_metadata)))) {
-  log_message("Found duplicate rownames after merging, making them unique...")
+  thisutils::log_message("Found duplicate rownames after merging, making them unique...")
   rownames(combined_metadata) <- make.unique(
     rownames(combined_metadata),
     sep = "_"
@@ -165,7 +166,7 @@ for (line in sample_meta_lines) {
 gsm_ids <- NULL
 gsm_ids <- sample_meta_list[["geo_accession"]]
 
-log_message("Found {.val {length(gsm_ids)}} GSM IDs")
+thisutils::log_message("Found {.val {length(gsm_ids)}} GSM IDs")
 
 series_meta_df <- data.frame(
   row.names = gsm_ids,
@@ -283,16 +284,29 @@ combined_metadata$Region <- gsub(
 before_count <- nrow(combined_metadata)
 combined_metadata <- combined_metadata[combined_metadata$Region != "Svz+caudate", , drop = FALSE]
 after_count <- nrow(combined_metadata)
-log_message(
+thisutils::log_message(
   "Filtered out svz+caudate data: {.val {before_count}} -> {.val {after_count}} cells"
 )
 
-combined_metadata$Age <- gsub(
-  " weeks gestation", " PCW", combined_metadata$Age
+source_age <- as.character(combined_metadata$Age)
+gestational <- !is.na(source_age) & grepl(
+  "weeks gestation",
+  source_age,
+  ignore.case = TRUE
 )
-combined_metadata$Age <- gsub(
-  "^(\\d+(?:\\.\\d+)?) years$", "\\1", combined_metadata$Age,
-  perl = TRUE
+combined_metadata <- standardize_source_age_metadata(
+  combined_metadata,
+  source_age = source_age,
+  source_basis = ifelse(gestational, "gestational", NA_character_),
+  source_unit = ifelse(
+    gestational,
+    "gestational weeks",
+    "source postnatal-age label"
+  ),
+  source_reference = paste(
+    "Ramos et al. 2022, DOI 10.1038/s41467-022-34975-2 and",
+    "GEO GSE217511; prenatal developmental stages are weeks gestation"
+  )
 )
 
 combined_metadata$cell_barcode_original <- rownames(combined_metadata)
@@ -381,7 +395,7 @@ combo_df <- data.frame(
   stringsAsFactors = FALSE
 )
 
-log_message("Processing {.val {nrow(combo_df)}} GSM-sample combinations...")
+thisutils::log_message("Processing {.val {nrow(combo_df)}} GSM-sample combinations...")
 
 objects_list <- thisutils::parallelize_fun(
   seq_len(nrow(combo_df)),
@@ -390,7 +404,7 @@ objects_list <- thisutils::parallelize_fun(
     sample_id <- combo_df$sample_id[i]
     key <- combo_df$key[i]
 
-    log_message("Processing {.val {gsm_id}} sample {.val {sample_id}}")
+    thisutils::log_message("Processing {.val {gsm_id}} sample {.val {sample_id}}")
     gsm_dir <- file.path(data_dir, gsm_id)
 
     counts <- read_10x_sample(gsm_id, gsm_dir, sample_id)
@@ -445,15 +459,20 @@ metadata$Dataset <- "GSE217511"
 metadata$Technology <- "10X Genomics"
 metadata$Sequence <- "snRNA-seq"
 metadata$Sample <- metadata$sample
-metadata$Sex <- ifelse(metadata$Sex == "female", "Female", "Male")
+metadata$Sex_Source_Raw <- as.character(metadata$Sex)
+metadata$Sex_Assignment_Method <- "source reported"
+metadata$Sex <- standardize_source_sex_value(metadata$Sex_Source_Raw)
 metadata$CellType_raw <- metadata$celltypes
 
 column_order <- c(
   "Cells", "Dataset", "Technology", "Sequence", "Sample",
-  "Sample_ID", "CellType_raw", "Brain_Region", "Region", "Age", "Sex"
+  "Sample_ID", "CellType_raw", "Brain_Region", "Region",
+  "Age_Source_Raw", "Age_Source_Unit", "Age_Source_Basis",
+  "Age_Source_Reference", "Age_Harmonization_Input",
+  "Age_Conversion_Formula", "Age_Conversion_Confidence",
+  "Age_Conversion_Applied", "Age", "Sex"
 )
-metadata <- metadata[, column_order]
-metadata <- na.omit(metadata)
+metadata <- retain_source_metadata(metadata, column_order)
 
 counts <- GetAssayData(object, layer = "counts")
 counts <- counts[, metadata$Cells]
@@ -462,7 +481,7 @@ object <- CreateSeuratObject(
   meta.data = metadata
 )
 
-log_message("Save data...")
+thisutils::log_message("Save data...")
 saveRDS(
   object,
   file.path(res_dir, "GSE217511_processed.rds")
