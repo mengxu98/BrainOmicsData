@@ -1,0 +1,61 @@
+Task	CellType	Cells	Majority_Mapped_Agreement
+1	Astrocytes	298682	1
+1	Differentiating oligodendrocytes	11147	1
+1	Endothelial cells	46045	1
+1	Excitatory neurons	725557	1
+1	Fibroblasts	11207	1
+1	Inhibitory neurons	659599	1
+1	Lymphocytes	2856	1
+1	Microglia	123484	1
+1	Mural cells	14772	1
+1	Neural progenitors	52522	1
+1	Oligodendrocyte progenitor cells	154098	1
+1	Oligodendrocytes	502062	1
+2	Astrocytes	298682	0.91061731205764
+2	Differentiating oligodendrocytes	11147	0.98878622050776
+2	Endothelial cells	46045	0.998001954609621
+2	Excitatory neurons	725557	0.990953157367374
+2	Fibroblasts	11207	0.997144641741769
+2	Inhibitory neurons	659599	0.976532711541406
+2	Lymphocytes	2856	0.993347338935574
+2	Microglia	123484	0.999101098117975
+2	Mural cells	14772	0.951056051990252
+2	Neural progenitors	52522	0.959655001713568
+2	Oligodendrocyte progenitor cells	154098	0.997585951796908
+2	Oligodendrocytes	502062	0.999143532073728
+3	Astrocytes	298682	0.997552581005886
+3	Differentiating oligodendrocytes	11147	0.993899703956221
+3	Endothelial cells	46045	0.997285264415246
+3	Excitatory neurons	725557	0.986050716897501
+3	Fibroblasts	11207	0.995806192558223
+3	Inhibitory neurons	659599	0.986937518098117
+3	Lymphocytes	2856	0.999649859943978
+3	Microglia	123484	0.987771695118396
+3	Mural cells	14772	0
+3	Neural progenitors	52522	0.954952210502266
+3	Oligodendrocyte progenitor cells	154098	0.999000635958935
+3	Oligodendrocytes	502062	0.999049918137601
+4	Astrocytes	298682	0.992908846197628
+4	Differentiating oligodendrocytes	11147	0.989145061451512
+4	Endothelial cells	46045	0.993115430557064
+4	Excitatory neurons	725557	0.985849492183247
+4	Fibroblasts	11207	0.995806192558223
+4	Inhibitory neurons	659599	0.98698603242273
+4	Lymphocytes	2856	0
+4	Microglia	123484	0.999651776748405
+4	Mural cells	14772	0.96872461413485
+4	Neural progenitors	52522	0.959102852138152
+4	Oligodendrocyte progenitor cells	154098	0.99588573505172
+4	Oligodendrocytes	502062	0.998930410985097
+5	Astrocytes	298682	0.993618631186345
+5	Differentiating oligodendrocytes	11147	0.994437965371849
+5	Endothelial cells	46045	0.994548810945814
+5	Excitatory neurons	725557	0.987526824219186
+5	Fibroblasts	11207	0.997590791469617
+5	Inhibitory neurons	659599	0.967677331227003
+5	Lymphocytes	2856	0
+5	Microglia	123484	0.999627482102944
+5	Mural cells	14772	0.956471703222312
+5	Neural progenitors	52522	0.951277559879669
+5	Oligodendrocyte progenitor cells	154098	0.995269244247167
+5	Oligodendrocytes	502062	0.996430719711908

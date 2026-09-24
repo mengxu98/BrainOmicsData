@@ -1,0 +1,21 @@
+{
+  "task": 4,
+  "settings": [
+    {
+      "seed": 20260730,
+      "resolution": 1.5,
+      "role": "resolution"
+    }
+  ],
+  "cells": 2602031,
+  "graph": "rpca_symmetric_weighted_knn_graph.rds",
+  "graph_md5": "f93f59d6fb1e79c0f413d7009491405a",
+  "baseline_md5": "5e1a06dc3744b5944125973295a6cc56",
+  "algorithm": 1,
+  "n_start": 10,
+  "n_iter": 10,
+  "group_singletons": true,
+  "subsampling": false,
+  "formal_annotation_modified": false,
+  "scope": "Clustering perturbation on the fixed full-cohort graph; not integration-seed or biological annotation validation"
+}

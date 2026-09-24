@@ -1,0 +1,8 @@
+{
+  "state": "PASS",
+  "runs": 5,
+  "cells": 2602031,
+  "datasets": 22,
+  "baseline_replay": true,
+  "scope": "All cells on one fixed production graph. Majority label matching measures stability conditional on the adopted annotation and is not independent biological accuracy. Integration randomness and graph construction were not perturbed."
+}

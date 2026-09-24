@@ -1,0 +1,76 @@
+Cluster	Cells	CellType
+C0	131708	Oligodendrocytes
+C1	116605	Oligodendrocytes
+C10	66201	Astrocytes
+C11	64233	Excitatory neurons
+C12	59340	Inhibitory neurons
+C13	55024	Inhibitory neurons
+C14	55005	Excitatory neurons
+C15	53524	Inhibitory neurons
+C16	50018	Inhibitory neurons
+C17	49635	Excitatory neurons
+C18	47583	Excitatory neurons
+C19	46237	Microglia
+C2	104961	Oligodendrocyte progenitor cells
+C20	45939	Astrocytes
+C21	44264	Inhibitory neurons
+C22	43486	Oligodendrocyte progenitor cells
+C23	43006	Oligodendrocytes
+C24	42811	Astrocytes
+C25	41936	Excitatory neurons
+C26	41045	Inhibitory neurons
+C27	40135	Excitatory neurons
+C28	40033	Excitatory neurons
+C29	39267	Inhibitory neurons
+C3	99452	Oligodendrocytes
+C30	38918	Neural progenitors
+C31	38799	Oligodendrocytes
+C32	37149	Inhibitory neurons
+C33	34847	Excitatory neurons
+C34	34214	Excitatory neurons
+C35	32917	Excitatory neurons
+C36	31586	Inhibitory neurons
+C37	31055	Endothelial cells
+C38	30771	Excitatory neurons
+C39	30031	Excitatory neurons
+C4	86588	Excitatory neurons
+C40	29315	Excitatory neurons
+C41	28669	Excitatory neurons
+C42	28279	Astrocytes
+C43	27607	Astrocytes
+C44	25198	Inhibitory neurons
+C45	18516	Inhibitory neurons
+C46	16140	Excitatory neurons
+C47	14990	Endothelial cells
+C48	14772	Mural cells
+C49	13604	Neural progenitors
+C5	83192	Inhibitory neurons
+C50	13278	Inhibitory neurons
+C51	12898	Excitatory neurons
+C52	11947	Excitatory neurons
+C53	11535	Inhibitory neurons
+C54	11207	Fibroblasts
+C55	11147	Differentiating oligodendrocytes
+C56	9883	Excitatory neurons
+C57	9625	Inhibitory neurons
+C58	9099	Excitatory neurons
+C59	7729	Excitatory neurons
+C6	80099	Astrocytes
+C60	6398	Inhibitory neurons
+C61	5651	Oligodendrocyte progenitor cells
+C62	5289	Excitatory neurons
+C63	4586	Excitatory neurons
+C64	4122	Astrocytes
+C65	4099	Microglia
+C66	3624	Astrocytes
+C67	3539	Inhibitory neurons
+C68	2856	Lymphocytes
+C69	2074	Excitatory neurons
+C7	75836	Inhibitory neurons
+C70	1488	Oligodendrocytes
+C71	1147	Oligodendrocytes
+C72	732	Microglia
+C73	674	Inhibitory neurons
+C74	591	Inhibitory neurons
+C8	72416	Microglia
+C9	69857	Oligodendrocytes
