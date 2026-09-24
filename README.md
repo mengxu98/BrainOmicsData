@@ -4,7 +4,7 @@ BrainOmicsData is the code repository for this resource.
 
 **2,602,031 cells or nuclei · 24,659 genes · 22 source datasets · 75 clusters · 12 cell types**
 
-Version 2 is published at ScienceDB under the existing DOI [10.57760/sciencedb.41612](https://doi.org/10.57760/sciencedb.41612). The corresponding revision code is identified by the [v2.0.0 tag](https://github.com/mengxu98/BrainOmicsData/tree/v2.0.0). Code maintenance does not replace the public ScienceDB files.
+Version 2 is published at ScienceDB under the existing DOI [10.57760/sciencedb.41612](https://doi.org/10.57760/sciencedb.41612). The corresponding analysis code is identified by the [v2.0.0 tag](https://github.com/mengxu98/BrainOmicsData/tree/v2.0.0). Code maintenance does not replace the public ScienceDB files.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/fig1-night.svg">
@@ -28,7 +28,7 @@ Twelve numbered drivers run in order from the repository root:
 | 08 | `08_rpca.sh` | RPCA latent space |
 | 09 | `09_final_assembly.sh` | Assemble the integrated object and evaluate latent spaces |
 | 10 | `10_sciencedb_export.sh` | Build the cell-level QC and annotation inputs when absent, then export and verify the deposit package |
-| 11 | `11_analysis_figures.sh` | Manuscript figures from the current frozen analysis run |
+| 11 | `11_analysis_figures.sh` | Figures from the retained analysis outputs |
 | 12 | `12_sciencedb_upload.sh` | Transfer the sealed package |
 
 `bash run_pipeline.sh` runs stages 01–12; `--list`, `--from`, `--to`, `--only` select subsets.
@@ -62,23 +62,25 @@ fixed-context input, and panel assembly are documented in
 tables and formal figure; stage 11 only redraws from existing source tables.
 `plotting/` contains only figure-numbered
 R scripts; shared configuration, panel assembly and other plotting support
-scripts live under `functions/`. The S1
-age-interval and S2 brain-region entry points redraw their PDFs from the
-current 2,602,031-cell metadata and RPCA embedding before exporting PNGs.
-The S3 formal-cell-type entry point rasterizes its
-existing current-cohort PDF; no matching original S3 drawing script is
-present in this checkout.
-S4 contains the 33 markers in the adopted formal list, with all 2,602,031
-cells in each FeatureDimPlot. Its complete drawing code is in
-`functions/figS4_source.R`; `plotting/figS4.R` runs it from the full analysis
-inputs locally and exports the numbered PDF and 600 dpi PNG. The compact S4
-was redrawn locally from the formal 33-marker list; the 34-marker candidate
-preview and superseded 37-marker version were not used. The plotting entry
-uses the sibling `scop` checkout when present, or `SCOP_SOURCE_PATH` when set.
+scripts live under `functions/`. The S1 age-interval and S2 brain-region entry
+points redraw their PDFs from the 2,602,031-cell metadata and RPCA embedding
+before exporting PNGs.
+The S3 cell-type entry point exports PNG from the retained PDF by default;
+`Rscript plotting/figS3.R --redraw` draws it from the analysis inputs using
+`functions/figS3_source.R`. The original drawing source is also available in
+`analysis/revision_sources/plot_celltype_locations.R`.
+S4 shows all 33 markers in the adopted list, with all 2,602,031 cells in each
+FeatureDimPlot. Its complete drawing code is in `functions/figS4_source.R`;
+`plotting/figS4.R` reads the full analysis inputs and exports the numbered PDF
+and 600 dpi PNG. The plotting dependency is recorded in
+`environment/scop-plotting.lock.tsv`, with source and license under
+`environment/vendor/`. It uses the installed `scop` package or an explicitly
+supplied `SCOP_SOURCE_PATH`; see
+[`environment/REPRODUCIBILITY.md`](environment/REPRODUCIBILITY.md) for setup.
 
 Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-10 inputs), `annotation/`, `gene_reuse/`, `run_root/` (stage-04 run root; its large `inputs/`, `matrices/` and `run/` trees are kept on the storage host) and `work/` (stage-10 work directory). `results/`, `submission/`, `figures/` (except the light and dark Figure 1 SVGs) and the manuscript folders are outside version control. PNG exports remain local for manuscript preparation; GitHub displays the corresponding SVG for the reader's color theme.
 
-The `integration_25` paths below are intermediate output locations for the numbered processing stages. The active manuscript figures and annotation use the 2,602,031-cell inputs under `results/analysis_run/` and `results/annotation/`.
+The `integration_25` paths below are intermediate output locations for the numbered processing stages. The figures and annotation use the 2,602,031-cell inputs under `results/analysis_run/` and `results/annotation/`.
 
 ## Environment variables
 

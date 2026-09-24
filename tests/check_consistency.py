@@ -152,7 +152,8 @@ def main():
         if path.is_file():
             rows = read_tsv(path)
             check(rows and {'Package', 'Version'} <= set(rows[0].keys()), f'environment/{lock} lacks Package/Version columns')
-    check((repo/'figures/fig1.png').is_file(), 'README overview figure figures/fig1.png is missing')
+    for overview in ['figures/fig1.svg', 'figures/fig1-night.svg']:
+        check((repo/overview).is_file(), f'README overview figure {overview} is missing')
 
     if FAIL:
         print(f'FAIL consistency: {len(FAIL)} problem(s)')

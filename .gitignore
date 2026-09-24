@@ -90,3 +90,11 @@ tmp/
 /analysis/data/
 # Stray R plot output.
 /Rplots.pdf
+
+# Private document tooling and local verification records
+/analysis/write_artifact_manifest.py
+/provenance/artifact_manifest.tsv
+
+/provenance/recheck_*/
+/provenance/clustering_recovery_*/
+/provenance/clustering_sensitivity/**/independent_overlap_check.json
