@@ -4,7 +4,7 @@ BrainOmicsData is the code repository for this resource.
 
 **2,602,031 cells or nuclei · 24,659 genes · 22 source datasets · 75 clusters · 12 cell types**
 
-Version 1 is published at ScienceDB (DOI [10.57760/sciencedb.41612](https://doi.org/10.57760/sciencedb.41612)); this repository holds the code for version 2.
+Version 2 is published at ScienceDB under the existing DOI [10.57760/sciencedb.41612](https://doi.org/10.57760/sciencedb.41612). The corresponding revision code is identified by the [v2.0.0 tag](https://github.com/mengxu98/BrainOmicsData/tree/v2.0.0). Code maintenance does not replace the public ScienceDB files.
 
 ![Overview of the integrated human brain atlas](figures/fig1.png)
 
