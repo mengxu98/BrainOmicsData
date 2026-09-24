@@ -6,7 +6,11 @@ BrainOmicsData is the code repository for this resource.
 
 Version 2 is published at ScienceDB under the existing DOI [10.57760/sciencedb.41612](https://doi.org/10.57760/sciencedb.41612). The corresponding revision code is identified by the [v2.0.0 tag](https://github.com/mengxu98/BrainOmicsData/tree/v2.0.0). Code maintenance does not replace the public ScienceDB files.
 
-![Overview of the integrated human brain atlas](figures/fig1.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="figures/fig1-night.svg">
+  <source media="(prefers-color-scheme: light)" srcset="figures/fig1.svg">
+  <img alt="Overview of the integrated human brain atlas" src="figures/fig1.svg">
+</picture>
 
 ## Pipeline
 
@@ -72,7 +76,7 @@ was redrawn locally from the formal 33-marker list; the 34-marker candidate
 preview and superseded 37-marker version were not used. The plotting entry
 uses the sibling `scop` checkout when present, or `SCOP_SOURCE_PATH` when set.
 
-Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-10 inputs), `annotation/`, `gene_reuse/`, `run_root/` (stage-04 run root; its large `inputs/`, `matrices/` and `run/` trees are kept on the storage host) and `work/` (stage-10 work directory). `results/`, `submission/`, `figures/` (except the Figure 1 overview PNG and existing vector copies) and the manuscript folders are outside version control.
+Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-10 inputs), `annotation/`, `gene_reuse/`, `run_root/` (stage-04 run root; its large `inputs/`, `matrices/` and `run/` trees are kept on the storage host) and `work/` (stage-10 work directory). `results/`, `submission/`, `figures/` (except the light and dark Figure 1 SVGs) and the manuscript folders are outside version control. PNG exports remain local for manuscript preparation; GitHub displays the corresponding SVG for the reader's color theme.
 
 The `integration_25` paths below are intermediate output locations for the numbered processing stages. The active manuscript figures and annotation use the 2,602,031-cell inputs under `results/analysis_run/` and `results/annotation/`.
 

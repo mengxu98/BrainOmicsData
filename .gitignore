@@ -1,7 +1,8 @@
 .DS_Store
 .omicos
 figures/*
-!/figures/fig1.png
+!/figures/fig1.svg
+!/figures/fig1-night.svg
 figures_backup/
 /manuscript/
 /code/manuscript/
