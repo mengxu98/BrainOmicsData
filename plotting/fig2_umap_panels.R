@@ -12,8 +12,8 @@ suppressPackageStartupMessages({
 
 source("functions/utils.R")
 
-source("plotting/config.R")
-panel_dir <- "figures";four_method_only<-FALSE
+source("functions/config.R")
+panel_dir <- "figures";dir.create(panel_dir, recursive = TRUE, showWarnings = FALSE);four_method_only<-FALSE
 metadata <- fread(file.path(root,"00_input_audit/compact/core_metadata_minimal.tsv.gz"))
 embedding <- readRDS(file.path(root,"00_input_audit/compact/embedding_umap.rpca.rds"))
 stopifnot(is.matrix(embedding),nrow(embedding)==2602031L,identical(rownames(embedding),metadata$Cells))
@@ -60,12 +60,6 @@ if (!four_method_only) {
   )[[1]]
   p_celltype <- order_dim_plot_cells(p_celltype, draw_order)
   stopifnot(identical(rownames(p_celltype$data), draw_order))
-  ggplot2::ggsave(
-    file.path(panel_dir, "fig2_celltype_umap.pdf"), p_celltype,
-    device = grDevices::cairo_pdf, width = 285, height = 185, units = "mm",
-    family = "Arial", bg = "white"
-  )
-  
   message("RPCA cell-type UMAP completed: ", panel_dir)
 }
 
@@ -101,11 +95,8 @@ if (!four_method_only) {
     p + theme_blank_axis(lab_size = 5.5, axis_lwd = .6) + p$theme +
       p$coordinates + annotation_theme
   })
-  annotation_row <- patchwork::wrap_plots(annotation_plots, nrow = 1) +
-    patchwork::plot_annotation(tag_levels = list(c("F", "G")))
-  annotation_row <- annotation_row & theme(plot.tag = element_text(size = 9, face = "plain"),
-    plot.tag.position = "topleft")
-  ggplot2::ggsave(file.path(panel_dir, "fig2_annotation_row.pdf"), annotation_row,
+  annotation_row <- patchwork::wrap_plots(annotation_plots, nrow = 1)
+  ggplot2::ggsave(file.path(panel_dir, "fig2f.pdf"), annotation_row,
     device = grDevices::cairo_pdf, width = 168, height = 66, units = "mm",
     family = "Arial", bg = "white")
 }

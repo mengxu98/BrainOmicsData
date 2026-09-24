@@ -8,6 +8,9 @@ Usage: normalize_package.py PACKAGE_DIR
 """
 import csv, datetime, hashlib, json, pathlib, sys
 
+FILE_MANIFEST_COLUMNS = ['Relative_Path', 'Bytes', 'Dimensions', 'Schema_Version', 'License', 'SHA256', 'MD5']
+PACKAGE_SCHEMA_VERSION = '2.0.0'
+
 DROP_STATUS_COLUMNS = ['Public_Deposition_Status', 'License_Scope', 'Article_License_Scope', 'Redistribution_Status']
 DROP_MT_COLUMNS = ['Source_Files', 'Source_Component_Count', 'MT_Gene_Count_Min', 'MT_Gene_Count_Max',
                    'MT_Genes', 'Percent_Mito_Status', 'Percent_Mito_Definition', 'Percent_Mito_NA_Policy']
@@ -56,8 +59,90 @@ def write_tsv(path, columns, rows):
             writer.writerow({column: row.get(column, '') for column in columns})
 
 
+def manifest_attributes(root, rel, shards, licenses, cell_count):
+    """Describe the released file axes and the applicable licence evidence."""
+    dimensions = ''
+    license_text = 'MIT'
+    parts = pathlib.PurePosixPath(rel).parts
+    if len(parts) == 4 and parts[:2] == ('expression', 'shards'):
+        dataset, component = parts[2:]
+        shard = shards[dataset]
+        cells, features = int(shard['Cells']), int(shard['Features'])
+        if component == 'matrix.mtx.gz':
+            dimensions = f'{features}x{cells}'
+        elif component == 'features.tsv.gz':
+            dimensions = f'{features}x3'
+        elif component == 'barcodes.tsv.gz':
+            dimensions = f'{cells}x1'
+        else:
+            raise ValueError(f'unrecognized expression component: {rel}')
+        license_text = licenses[dataset]
+    elif rel == 'expression/shard_manifest.tsv':
+        dimensions = f'{len(shards)}x5'
+    elif rel == 'metadata/metadata.tsv.gz':
+        dimensions = f'{cell_count}x21'
+    elif rel == 'metadata/metadata_dictionary.tsv':
+        dimensions = '21x2'
+    elif rel == 'metadata/feature_metadata.tsv':
+        dimensions = f'{next(iter(shards.values()))["Features"]}x4'
+    elif rel == 'provenance/dataset_manifest.tsv':
+        with open(root/rel, newline='') as handle:
+            columns = next(csv.reader(handle, delimiter='\t'))
+        dimensions = f'{len(licenses)}x{len(columns)}'
+    elif rel.startswith('embeddings/') and rel.endswith('.tsv.gz'):
+        coordinates = 2 if rel.endswith('_umap.tsv.gz') else 50
+        dimensions = f'{cell_count}x{coordinates}'
+    elif rel == 'validation/lisi.tsv.gz':
+        dimensions = f'{cell_count}x8'
+    elif rel not in ('README.md', 'scripts/readers.zip'):
+        raise ValueError(f'unrecognized package file: {rel}')
+    schema = '' if rel in ('README.md', 'scripts/readers.zip') else PACKAGE_SCHEMA_VERSION
+    return {'Dimensions': dimensions, 'Schema_Version': schema, 'License': license_text}
+
+
+def enrich_manifest(root, rows):
+    _, shard_rows = read_tsv(root/'expression/shard_manifest.tsv')
+    _, source_rows = read_tsv(root/'provenance/dataset_manifest.tsv')
+    shards = {row['Dataset']: row for row in shard_rows}
+    licenses = {row['Dataset']: row['Data_License'] for row in source_rows}
+    if len(shards) != 22 or set(shards) != set(licenses):
+        raise ValueError('source datasets differ between shard and provenance manifests')
+    cell_count = sum(int(row['Cells']) for row in shard_rows)
+    if cell_count != 2602031 or {int(row['Features']) for row in shard_rows} != {24659}:
+        raise ValueError('shard dimensions differ from the released cohort')
+    for row in rows:
+        row.update(manifest_attributes(root, row['Relative_Path'], shards, licenses, cell_count))
+
+
+def update_manifest_metadata_only(root):
+    """Refresh manifest metadata without hashing unchanged large payloads."""
+    manifest_path = root/'provenance/file_manifest.tsv'
+    columns, rows = read_tsv(manifest_path)
+    if not set(['Relative_Path', 'Bytes', 'SHA256', 'MD5']).issubset(columns):
+        raise ValueError('existing file manifest lacks checksum columns')
+    enrich_manifest(root, rows)
+    for row in rows:
+        rel = row['Relative_Path']
+        path = root/rel
+        if rel == 'README.md':
+            data = path.read_bytes()
+            row['Bytes'] = len(data)
+            row['SHA256'] = hashlib.sha256(data).hexdigest()
+            row['MD5'] = hashlib.md5(data).hexdigest()
+        elif path.is_file() and path.stat().st_size != int(row['Bytes']):
+            raise ValueError(f'payload size changed; full normalization required: {rel}')
+    write_tsv(manifest_path, FILE_MANIFEST_COLUMNS, rows)
+    md5_lines = [f'{row["MD5"]}  {row["Relative_Path"]}' for row in rows]
+    md5_lines.append(f'{hashlib.md5(manifest_path.read_bytes()).hexdigest()}  provenance/file_manifest.tsv')
+    (root/'md5sum.txt').write_text('\n'.join(md5_lines) + '\n')
+    print(json.dumps({'payload_files': len(rows), 'schema_version': PACKAGE_SCHEMA_VERSION}))
+
+
 def main():
     root = pathlib.Path(sys.argv[1]).resolve()
+    if '--manifest-metadata-only' in sys.argv[2:]:
+        update_manifest_metadata_only(root)
+        return
     seal_path = pathlib.Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root.parent/'package_seal.json'
     changed = []
 
@@ -116,7 +201,8 @@ def main():
         digest256, digest5 = hashlib.sha256(data).hexdigest(), hashlib.md5(data).hexdigest()
         manifest_rows.append({'Relative_Path': rel, 'Bytes': len(data), 'SHA256': digest256, 'MD5': digest5})
         md5_lines.append(f'{digest5}  {rel}')
-    write_tsv(manifest_path, ['Relative_Path', 'Bytes', 'SHA256', 'MD5'], manifest_rows)
+    enrich_manifest(root, manifest_rows)
+    write_tsv(manifest_path, FILE_MANIFEST_COLUMNS, manifest_rows)
     md5_lines.append(f"{hashlib.md5(manifest_path.read_bytes()).hexdigest()}  provenance/file_manifest.tsv")
     (root/'md5sum.txt').write_text('\n'.join(md5_lines) + '\n')
     seal = {'state': 'PASS', 'files_hashed': len(manifest_rows), 'sha256': 'in provenance/file_manifest.tsv',

@@ -27,7 +27,7 @@ metadata_object_file <- normalizePath(
 )
 celltype_assignment_file <- value_after(
   "--celltype-assignment-file",
-  "../../data/BrainOmicsData/integration_25/annotation/celltype_assignments.rds"
+  "results/annotation/celltype_assignments.rds"
 )
 if (nzchar(celltype_assignment_file)) {
   celltype_assignment_file <- normalizePath(

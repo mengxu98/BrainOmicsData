@@ -1,12 +1,12 @@
-# BrainOmicsData
+# A human brain single-cell and single-nucleus transcriptomic resource across age intervals
 
-Human brain single-cell and single-nucleus transcriptome resource.
+BrainOmicsData is the code repository for this resource.
 
 **2,602,031 cells or nuclei · 24,659 genes · 22 source datasets · 75 clusters · 12 cell types**
 
 Version 1 is published at ScienceDB (DOI [10.57760/sciencedb.41612](https://doi.org/10.57760/sciencedb.41612)); this repository holds the code for version 2.
 
-![Overview of the integrated human brain atlas](figures/fig1.svg)
+![Overview of the integrated human brain atlas](figures/fig1.png)
 
 ## Pipeline
 
@@ -24,7 +24,7 @@ Twelve numbered drivers run in order from the repository root:
 | 08 | `08_rpca.sh` | RPCA latent space |
 | 09 | `09_final_assembly.sh` | Assemble the integrated object and evaluate latent spaces |
 | 10 | `10_sciencedb_export.sh` | Build the cell-level QC and annotation inputs when absent, then export and verify the deposit package |
-| 11 | `11_analysis_figures.sh` | Annotation summaries, manuscript figures and tables |
+| 11 | `11_analysis_figures.sh` | Manuscript figures from the current frozen analysis run |
 | 12 | `12_sciencedb_upload.sh` | Transfer the sealed package |
 
 `bash run_pipeline.sh` runs stages 01–12; `--list`, `--from`, `--to`, `--only` select subsets.
@@ -34,11 +34,11 @@ Twelve numbered drivers run in order from the repository root:
 
 | Path | Contents |
 |---|---|
-| `functions/` | Shared helpers, assembly runners, package exporters, normalization scripts |
+| `functions/` | Shared helpers, figure assembly and support scripts, package exporters, normalization scripts |
 | `integration/` | Integration and evaluation modules |
 | `processing/`, `download/` | Per-dataset reconstruction and download scripts |
 | `annotation/` | Annotation inputs and adopted-label export |
-| `analysis/`, `plotting/` | Analysis summaries and figures |
+| `analysis/`, `plotting/` | Analysis summaries and figure-numbered plotting scripts |
 | `sciencedb/` | Package metadata, manifest, reader and anonymization utilities |
 | `results/` | Local analysis inputs used by the figure scripts (outside version control) |
 | `environment/` | Package locks and restore/verification scripts |
@@ -46,7 +46,35 @@ Twelve numbered drivers run in order from the repository root:
 | `data/` | Source access table, donor crosswalks, feature metadata |
 | `tests/` | Workflow tests and package contract checks |
 
-Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-10 inputs), `annotation/`, `gene_reuse/`, `run_root/` (stage-04 run root; its large `inputs/`, `matrices/` and `run/` trees are kept on the storage host) and `work/` (stage-10 work directory). `results/`, `submission/`, `figures/` (except the Figure 1 overview files) and the manuscript folders are outside version control.
+The manuscript figure entry points are `plotting/fig1.R` through
+`plotting/fig5.R` and `plotting/figS1.R` through `plotting/figS4.R`. Each writes a
+matching 600 dpi or higher PNG under `figures/`. Active panel PDFs use only
+their panel identifiers (`fig1a.pdf`, `fig2f.pdf`, and so on); vector copies
+and source tables remain in the same directory.
+Figure 5's complete 22-source extraction, aggregation, source-level sign test,
+fixed-context input, and panel assembly are documented in
+[`analysis/fig5_README.md`](analysis/fig5_README.md). Run
+`bash analysis/fig5_rebuild.sh` on the storage host to regenerate its source
+tables and formal figure; stage 11 only redraws from existing source tables.
+`plotting/` contains only figure-numbered
+R scripts; shared configuration, panel assembly and other plotting support
+scripts live under `functions/`. The S1
+age-interval and S2 brain-region entry points redraw their PDFs from the
+current 2,602,031-cell metadata and RPCA embedding before exporting PNGs.
+The S3 formal-cell-type entry point rasterizes its
+existing current-cohort PDF; no matching original S3 drawing script is
+present in this checkout.
+S4 contains the 33 markers in the adopted formal list, with all 2,602,031
+cells in each FeatureDimPlot. Its complete drawing code is in
+`functions/figS4_source.R`; `plotting/figS4.R` runs it from the full analysis
+inputs locally and exports the numbered PDF and 600 dpi PNG. The compact S4
+was redrawn locally from the formal 33-marker list; the 34-marker candidate
+preview and superseded 37-marker version were not used. The plotting entry
+uses the sibling `scop` checkout when present, or `SCOP_SOURCE_PATH` when set.
+
+Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-10 inputs), `annotation/`, `gene_reuse/`, `run_root/` (stage-04 run root; its large `inputs/`, `matrices/` and `run/` trees are kept on the storage host) and `work/` (stage-10 work directory). `results/`, `submission/`, `figures/` (except the Figure 1 overview PNG and existing vector copies) and the manuscript folders are outside version control.
+
+The `integration_25` paths below are intermediate output locations for the numbered processing stages. The active manuscript figures and annotation use the 2,602,031-cell inputs under `results/analysis_run/` and `results/annotation/`.
 
 ## Environment variables
 
@@ -81,7 +109,7 @@ drivers exists.
 ## Deposit package
 
 The sealed deposit package is kept on the storage host outside the repository.
-It holds 85 files (83 payload, about 22 GB): `expression/`, `embeddings/`, `validation/`, `metadata/`, `provenance/`, `scripts/`, `README.md`, `md5sum.txt`.
+It holds 84 files (82 payload, about 22 GB): `expression/`, `embeddings/`, `validation/`, `metadata/`, `provenance/`, `scripts/`, `README.md`, `md5sum.txt`.
 
 ## Licence
 

@@ -238,7 +238,7 @@ celltype_summary_group_heatmap <- function(summary, marker_spec, type_levels, fl
     use_raster = FALSE,
     column_title = if (flip) rep(" ", length(marker_levels)) else "Celltype",
     width = if (flip) 5.4 else 2.5,
-    height = if (flip) 1.4 else length(genes) * 0.12,
+    height = if (flip) 1.85 else length(genes) * 0.12,
     legend.position = if (flip) "bottom" else "right",
     verbose = FALSE,
     ht_params = list(
@@ -277,9 +277,9 @@ celltype_summary_group_heatmap <- function(summary, marker_spec, type_levels, fl
   p
 }
 
-# Fixed manuscript CellType palette shared by reference and mapping UMAPs.
+# Submission atlas CellType palette: 2,602,031 cells, 12 classes.
 read_celltype_assignments <- function(cells = NULL) {
-  path <- "../../data/BrainOmicsData/integration_25/annotation/celltype_assignments.rds"
+  path <- "results/annotation/celltype_assignments.rds"
   annotation <- as.data.frame(readRDS(path))
   stopifnot(
     identical(names(annotation), c("Cells", "Cluster", "CellType")),
@@ -379,19 +379,15 @@ brainomics_celltype_colors <- c(
   "Astrocytes" = "#D70440",
   "Endothelial cells" = "#5E7987",
   "Mural cells" = "#8C6D31",
-  "Perivascular fibroblasts" = "#B07A4A",
+  "Fibroblasts" = "#B07A4A",
   "Excitatory neurons" = "#02AD24",
-  "MGE-derived inhibitory neurons" = "#174E7A",
-  "CGE-derived inhibitory neurons" = "#4C9BCB",
-  "Histaminergic neurons" = "#A24D70",
+  "Inhibitory neurons" = "#286A9D",
   "Microglia" = "#006D87",
-  "Lymphocytes" = "#7E57C2",
-  "Neuroblasts" = "#ED5736",
+  "Lymphocytes" = "#00BFC4",
+  "Neural progenitors" = "#8963A4",
   "Oligodendrocyte progenitor cells" = "#F9BD10",
-  "Oligodendrocyte lineage cells" = "#A6761D",
   "Differentiating oligodendrocytes" = "#E07A2D",
-  "Oligodendrocytes" = "#B14B28",
-  "Radial glia" = "#8076A3"
+  "Oligodendrocytes" = "#B14B28"
 )
 
 # Fixed dataset-name mapping shared by all dataset-coloured panels.

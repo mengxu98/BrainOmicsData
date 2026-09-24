@@ -12,6 +12,7 @@ REQUIRED_MANIFEST_COLUMNS = ['Dataset', 'Cells', 'Donors', 'Cross_Dataset_Donors
                              'Title', 'First_Author', 'Publication_Year', 'Source_URL', 'Repository_Record_URL',
                              'Processed_Input_Route', 'Processed_Input_URLs', 'Processed_Record_URL',
                              'Data_License', 'Derived_Matrix_Scope', 'Article_License_URL']
+FILE_MANIFEST_COLUMNS = ['Relative_Path', 'Bytes', 'Dimensions', 'Schema_Version', 'License', 'SHA256', 'MD5']
 FORBIDDEN_PATHS = ['metadata/cluster_annotation.tsv', 'provenance/celltype_raw_dictionary.tsv',
                    'Supplementary_Data.xlsx', 'reproduction.zip', 'objects', 'metadata/dataset_summary.tsv']
 FORBIDDEN_WORDS = ['Current_', '2,712,452', '2712452']
@@ -36,11 +37,20 @@ def main():
         problems.append('missing provenance/file_manifest.tsv')
     else:
         with open(manifest, newline='') as handle:
-            rows = list(csv.DictReader(handle, delimiter='\t'))
-        if list(rows[0].keys()) != ['Relative_Path', 'Bytes', 'SHA256', 'MD5']:
+            file_rows = list(csv.DictReader(handle, delimiter='\t'))
+        if list(file_rows[0].keys()) != FILE_MANIFEST_COLUMNS:
             problems.append('file_manifest.tsv columns differ')
+        if len(file_rows) != 82 or len({row['Relative_Path'] for row in file_rows}) != len(file_rows):
+            problems.append(f'file_manifest.tsv must list 82 unique payload files, found {len(file_rows)}')
+        for row in file_rows:
+            rel = row['Relative_Path']
+            if not row['License']:
+                problems.append(f'missing licence in file manifest: {rel}')
+            if rel not in ('README.md', 'scripts/readers.zip'):
+                if row['Schema_Version'] != '2.0.0' or not row['Dimensions']:
+                    problems.append(f'missing dimensions or schema version: {rel}')
         not_mirrored = []
-        for row in rows:
+        for row in file_rows:
             path = root/row['Relative_Path']
             if not path.is_file():
                 not_mirrored.append(row['Relative_Path'])
@@ -62,8 +72,32 @@ def main():
             problems.append('dataset_manifest.tsv missing columns: ' + ', '.join(missing))
         if len(rows) != 22 or len({r['Dataset'] for r in rows}) != 22:
             problems.append(f'dataset_manifest.tsv must hold 22 datasets, found {len(rows)}')
+        if manifest.is_file():
+            licenses = {r['Dataset']: r['Data_License'] for r in rows}
+            for item in file_rows:
+                parts = pathlib.PurePosixPath(item['Relative_Path']).parts
+                if len(parts) == 4 and parts[:2] == ('expression', 'shards'):
+                    if item['License'] != licenses.get(parts[2]):
+                        problems.append(f'expression shard licence differs from source manifest: {item["Relative_Path"]}')
     else:
         problems.append('missing provenance/dataset_manifest.tsv')
+    shard_manifest = root/'expression/shard_manifest.tsv'
+    if shard_manifest.is_file() and manifest.is_file():
+        with open(shard_manifest, newline='') as handle:
+            shards = {row['Dataset']: row for row in csv.DictReader(handle, delimiter='\t')}
+        if len(shards) != 22:
+            problems.append(f'shard_manifest.tsv must hold 22 datasets, found {len(shards)}')
+        for item in file_rows:
+            parts = pathlib.PurePosixPath(item['Relative_Path']).parts
+            if len(parts) != 4 or parts[:2] != ('expression', 'shards') or parts[2] not in shards:
+                continue
+            source = shards[parts[2]]
+            cells, features = int(source['Cells']), int(source['Features'])
+            expected = {'matrix.mtx.gz': f'{features}x{cells}',
+                        'features.tsv.gz': f'{features}x3',
+                        'barcodes.tsv.gz': f'{cells}x1'}.get(parts[3])
+            if item['Dimensions'] != expected:
+                problems.append(f'expression shard dimensions differ from shard manifest: {item["Relative_Path"]}')
     # metadata
     metadata = root/'metadata/metadata.tsv.gz'
     if metadata.is_file():

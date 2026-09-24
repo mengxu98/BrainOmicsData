@@ -22,7 +22,8 @@ export PYTHONDONTWRITEBYTECODE=1
 import ast
 from pathlib import Path
 
-for root in (Path("processing"), Path("integration"), Path("tests")):
+for root in (Path("processing"), Path("integration"), Path("tests"),
+             Path("functions"), Path("environment"), Path("analysis")):
     for path in sorted(root.rglob("*.py")):
         ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 PY
@@ -32,6 +33,8 @@ files <- sort(unique(c(
   list.files("functions", pattern = "[.]R$", full.names = TRUE),
   list.files("processing", pattern = "[.]R$", full.names = TRUE),
   list.files("integration", pattern = "[.]R$", full.names = TRUE),
+  list.files("analysis", pattern = "[.]R$", full.names = TRUE, recursive = TRUE),
+  list.files("annotation", pattern = "[.]R$", full.names = TRUE),
   list.files("sciencedb", pattern = "[.]R$", full.names = TRUE),
   list.files("plotting", pattern = "[.]R$", full.names = TRUE),
   list.files("environment", pattern = "[.]R$", full.names = TRUE)

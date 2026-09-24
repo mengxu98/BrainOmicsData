@@ -2,7 +2,7 @@
 
 # Figure 1 panels A and C: cohort composition and the analysis workflow.
 # Panel B is written by plotting/fig1b_age_coverage.R; the figures are assembled
-# by plotting/assemble_figures.R.
+# by functions/assemble_figures.R.
 suppressPackageStartupMessages({
   library(ggplot2)
   library(patchwork)
@@ -21,7 +21,8 @@ analysis_dir <- Sys.getenv(
 )
 summary_dir <- Sys.getenv(
   "BRAINOMICS_REFERENCE_SUMMARY",
-  unset = file.path(analysis_dir, "07_downstream", "revision_20260918", "reference_summary")
+  unset = file.path("results", "analysis_run", "07_downstream",
+                    "revision_20260918", "reference_summary")
 )
 
 dir.create(panel_dir, recursive = TRUE, showWarnings = FALSE)
@@ -184,7 +185,7 @@ reported_ages <- reported_ages[
   drop = FALSE
 ]
 ggplot2::ggsave(
-  file.path(panel_dir, "fig1a_composition.pdf"), fig1a,
+  file.path(panel_dir, "fig1a.pdf"), fig1a,
   device = grDevices::cairo_pdf, width = 168, height = 34, units = "mm",
   family = "Arial", bg = "white"
 )
@@ -219,7 +220,12 @@ write_tsv(
 
 message("Figure 1 panels completed in ", panel_dir)
 
-message("Resource panels written; assemble the figures with plotting/assemble_figures.R")
+message("Resource panels written")
 
 source("plotting/fig1b_age_coverage.R", local = new.env())
 source("plotting/fig1c_workflow.R", local = new.env())
+Sys.setenv(BRAINOMICS_ASSEMBLE = "fig1")
+source("functions/assemble_figures.R", local = new.env())
+Sys.unsetenv("BRAINOMICS_ASSEMBLE")
+source("functions/export_png.R")
+export_pdf_png("figures/fig1.pdf", "figures/fig1.png", 6.77)

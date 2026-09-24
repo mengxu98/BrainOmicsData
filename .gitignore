@@ -1,10 +1,10 @@
 .DS_Store
 .omicos
 figures/*
-!/figures/fig1.svg
-!/figures/fig1-night.svg
+!/figures/fig1.png
 figures_backup/
-manuscript/
+/manuscript/
+/code/manuscript/
 manuscript_zh/
 manuscript_revised/
 manuscript_revised_zh/

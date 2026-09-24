@@ -4,6 +4,7 @@ suppressPackageStartupMessages({library(ggplot2)})
 source("functions/utils.R")
 
 panel_dir <- "figures"
+dir.create(panel_dir, recursive = TRUE, showWarnings = FALSE)
 asset_dir <- "results/annotation"
 dir.create(asset_dir, recursive = TRUE, showWarnings = FALSE)
 workflow <- data.frame(
@@ -80,7 +81,7 @@ fig1c <- ggplot(workflow, aes(x, y)) +
 write_tsv(workflow, file.path(asset_dir, "figure1_workflow_steps.tsv"))
 
 ggplot2::ggsave(
-  file.path(panel_dir, "fig1c_workflow.pdf"), fig1c,
+  file.path(panel_dir, "fig1c.pdf"), fig1c,
   device = grDevices::cairo_pdf, width = 167, height = 20, units = "mm",
   family = "Arial", bg = "white"
 )

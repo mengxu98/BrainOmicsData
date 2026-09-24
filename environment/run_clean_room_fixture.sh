@@ -50,22 +50,25 @@ fi
 
 cd "$repo_dir"
 export BRAINOMICS_REQUIRE_PYTHON_READER=true
+if [ -z "${BRAINOMICS_PYTHON:-}" ] && [ -x "$repo_dir/.venv/bin/python" ]; then
+  export BRAINOMICS_PYTHON="$repo_dir/.venv/bin/python"
+fi
 if [ "${BRAINOMICS_REQUIRE_CLEAN_CHECKOUT:-false}" = "true" ]; then
   test "${git_status-unavailable}" = "" || { echo "Clean code snapshot required"; exit 1; }
 fi
 Rscript --vanilla environment/verify_environment.R "$repo_dir" "$profile"
 if [ "${BRAINOMICS_VERIFY_SCVI_PYTHON:-false}" = "true" ]; then
-  python_bin="python3"
-  python_lock="environment/python-scvi-freeze.txt"
-  "$python_bin" environment/verify_python_environment.py \
-    --lock "$python_lock"
+  python_bin="${BRAINOMICS_SCVI_PYTHON:-${BRAINOMICS_PYTHON:-python3}}"
+  "$python_bin" environment/verify_python.py --imports
 fi
 
-bash tests/test_workflow.sh
+# A clean-room success requires the synthetic pipeline and both reader round
+# trips. The ordinary workflow command intentionally omits these slower checks.
+BRAINOMICS_FULL_TESTS=1 bash tests/test_workflow.sh
 
 find \
-  functions processing integration annotation plotting sciencedb environment \
-  tests hpc \
+  functions processing integration annotation analysis plotting sciencedb environment \
+  tests hpc data \
   -type f \
   \( -name '*.R' -o -name '*.py' -o -name '*.sh' -o -name '*.sbatch' \
      -o -name '*.tsv' -o -name '*.txt' -o -name '*.md' \) \
@@ -76,6 +79,14 @@ find \
       shasum -a 256 "$file"
     fi
   done > "$output_dir/code_sha256.tsv"
+find . -maxdepth 1 -type f -name '*.sh' -print | LC_ALL=C sort | \
+  while IFS= read -r file; do
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum "$file"
+    else
+      shasum -a 256 "$file"
+    fi
+  done >> "$output_dir/code_sha256.tsv"
 
 finished="$(date -u +%Y%m%dT%H%M%SZ)"
 printf '%s\n' \

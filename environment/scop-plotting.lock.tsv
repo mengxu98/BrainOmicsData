@@ -1,0 +1,2 @@
+Package	Version	Source_Commit	Source_Archive	Archive_SHA256	FeatureDimPlot_SHA256	License	Scope
+scop	0.9.2	8aec27fc594ec8763eb37cde719d4ef5c719118c	vendor/scop-8aec27fc-source.tar.gz	463792c2a3124c68d706895116bbfd11e5ef9d2075edfc462e4624661970d626	894fc9ca1570e24754d1830960b578e1a11f99c8c1d746a6ecdcd879d290126a	GPL-3.0-or-later	S4 plotting source; package code and documentation, bundled example datasets omitted

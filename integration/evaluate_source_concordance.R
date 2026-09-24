@@ -134,7 +134,7 @@ write_tsv(
     Value = c(
       "RPCA KNN, k=30, cosine, Annoy", nrow(mapping),
       digest::digest(
-        file = "../../data/BrainOmicsData/integration_25/annotation/celltype_assignments.rds",
+        file = "results/annotation/celltype_assignments.rds",
         algo = "sha256", serialize = FALSE
       ), "held-out donor", "10000 donor bootstrap resamples, percentile 95% CI",
       "Majority vote > 0.5 and positive margin; descriptive support, not calibrated probability",
