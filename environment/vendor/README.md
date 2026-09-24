@@ -9,15 +9,5 @@ The GPL-3.0-or-later license in the archive applies to this dependency. The
 repository's MIT license does not replace that license.
 
 The archive and `FeatureDimPlot.R` hashes are recorded in
-`../scop-plotting.lock.tsv`. For Figure S4, extract to a temporary directory and
-set `SCOP_SOURCE_PATH` to the extracted source folder. `pkgload::load_all` loads
-it using the installed dependency packages, without modifying the installed
-scop package. Figure S4 used this plotting build; the separate mapping build in
-`analysis/scop-knn.lock.tsv` describes the external-query calculation.
-
-A small `FeatureDimPlot` call on an already normalized Seurat fixture was checked
-after loading the archived R source. Without compiling the native code,
-`pkgload` reports an unavailable DLL; the tested plotting path works, but this
-source-only loading route is not intended for scop normalization or integration
-functions that call native code. Figure S4 computes its normalization explicitly
-before constructing the plotting object.
+`../scop-plotting.lock.tsv`. `../restore_r.R` installs the package and its
+dependencies in the locked R 4.5.1 environment.

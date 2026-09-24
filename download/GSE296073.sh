@@ -12,7 +12,9 @@ set -e
 
 source "$(dirname "$0")/../functions/utils.sh"
 
-DATA_DIR="../../data/BrainOmicsData/raw/GSE296073"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData}"
+DATA_DIR="$DATA_ROOT/raw/GSE296073"
 
 log_message "Starting GSE296073 data download..."
 

@@ -1,3 +1,5 @@
+source("functions/data_paths.R")
+
 packages <- c(
   "Seurat", "patchwork", "scop", "grid", "ggplot2", "thisplot",
   "thisutils"

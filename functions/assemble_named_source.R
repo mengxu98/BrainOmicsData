@@ -5,7 +5,6 @@ setDTthreads(1); options(Seurat.object.assay.version='v5')
 a <- commandArgs(TRUE); stopifnot(length(a) == 2L)
 run <- normalizePath(a[1]); ds <- a[2]
 Sys.setenv(BRAINOMICS_RUN_ROOT=run)
-setwd(file.path(run, 'pipeline'))
 source('functions/data_paths.R'); source('functions/metadata_schema.R')
 source('functions/dataset_metadata.R'); source('functions/processed_object.R'); source('functions/integration.R')
 src <- file.path(run, 'run/gene_removal_build', ds)
@@ -71,7 +70,7 @@ feature_meta <- as.data.frame(panel[, .(Gene_Key, Symbol, Selected_Gene_Type)])
 rownames(feature_meta) <- feature_meta$Gene_Key
 object[['RNA']] <- AddMetaData(object[['RNA']], metadata=feature_meta)
 object@misc$Reprocessing <- list(
-    Gene_Row_Policy='user_direct_removal_20260914',
+    Gene_Row_Policy='configured_gene_panel',
     Gene_Name_Policy=summary$version,
     Source_Representation_File=file.path(src, 'source_feature_representation.tsv.gz'),
     Zero_Padding_Is_Not_Measured_Expression=TRUE)

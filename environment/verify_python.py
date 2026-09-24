@@ -1,4 +1,4 @@
-"""Verify pinned package versions; optional real imports, never training."""
+"""Check the Python version and installed package versions."""
 import argparse
 import importlib.metadata as metadata
 import json
@@ -6,22 +6,28 @@ from pathlib import Path
 import sys
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--imports', action='store_true', help='Import the six analysis packages; does not run analysis.')
+parser.add_argument('--imports', action='store_true', help='Import the main analysis packages.')
 args = parser.parse_args()
 here = Path(__file__).resolve().parent
-assert sys.version_info[:3] == (3, 12, 8), sys.version
+if sys.version_info[:3] != (3, 12, 8):
+    raise RuntimeError(f'Python 3.12.8 is required; observed {sys.version}')
 normalize = lambda s: s.lower().replace('_', '-').replace('.', '-')
 expected = {}
-for line in (here / 'python-scvi-versions.txt').read_text().splitlines():
+for line in (here / 'python-scvi-freeze.txt').read_text().splitlines():
+    line = line.strip()
+    if not line or line.startswith('#'):
+        continue
     name, version = line.split('==')
+    if normalize(name) in expected:
+        raise ValueError(f'Duplicate package in Python lock: {name}')
     expected[normalize(name)] = version
 actual = {normalize(d.metadata['Name']): d.version for d in metadata.distributions()}
 errors = {n: {'expected': v, 'observed': actual.get(n)} for n, v in expected.items() if actual.get(n) != v}
-extras = sorted(set(actual) - set(expected) - {'pip', 'wheel'})
-assert not errors and not extras, {'version_errors': errors, 'unexpected_packages': extras}
-result = {'state': 'PASS_PINNED_PYTHON_VERSIONS', 'python': sys.version,
-          'analysis_packages': len(expected), 'prefix': sys.prefix,
-          'scope': 'Installed package versions only; no data read or computation.'}
+extras = sorted(set(actual) - set(expected))
+if errors or extras:
+    raise RuntimeError({'version_errors': errors, 'unexpected_packages': extras})
+result = {'state': 'ready', 'python': sys.version,
+          'packages': len(expected), 'prefix': sys.prefix}
 if args.imports:
     import anndata
     import numpy
@@ -31,6 +37,6 @@ if args.imports:
     import torch
     assert scvi.__version__ == '1.5.0.post1'
     assert torch.__version__ == '2.5.1+cu124' and torch.version.cuda == '12.4'
-    result.update(state='PASS_PINNED_VERSIONS_AND_IMPORTS', torch=torch.__version__, cuda_build=torch.version.cuda,
-                  scope='Package versions and actual imports; CUDA build metadata does not establish GPU availability or successful training. No data read or computation.')
+    result.update(imports='ready', torch=torch.__version__,
+                  cuda_build=torch.version.cuda)
 print(json.dumps(result, indent=2))

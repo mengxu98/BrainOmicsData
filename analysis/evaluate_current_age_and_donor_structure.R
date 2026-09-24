@@ -1,24 +1,227 @@
-suppressPackageStartupMessages({library(data.table);library(Matrix);library(SeuratObject);library(jsonlite)})
-setDTthreads(4);root<-normalizePath(commandArgs(TRUE)[1]);run<-file.path(root,'07_downstream/revision_20260918');p<-commandArgs(TRUE)[2];out<-file.path(p,'tables/age_signal');dir.create(out,recursive=TRUE,showWarnings=FALSE);m<-as.data.table(readRDS(file.path(p,'tables/metadata_formal.rds')))
-elig<-!is.na(m$Global_Donor_ID)&nzchar(m$Global_Donor_ID)&!grepl('unknown',m$Donor_ID_Verification_Status,ignore.case=TRUE)&is.finite(m$Age_num)&is.finite(m$Age_Lower)&is.finite(m$Age_Upper)&m$Age_Lower==m$Age_Upper&m$Age_num==m$Age_Lower&!grepl('mean|midpoint|range',paste(m$Age_Representative_Method,m$Age),ignore.case=TRUE)&!m$Dataset%in%c('GSE178175','GSE144136')
-if('Continuous_Age_Eligibility'%in%names(m))elig<-elig&!grepl('not eligible|mean|midpoint|range',m$Continuous_Age_Eligibility,ignore.case=TRUE)
-elig[is.na(elig)]<-FALSE;m[,eligible:=elig];conf<-m[eligible==TRUE,.(Ages=uniqueN(paste(Age_num,Unit))),by=Canonical_Donor_ID];m[Canonical_Donor_ID%in%conf[Ages!=1,Canonical_Donor_ID],eligible:=FALSE];fwrite(conf[Ages!=1],file.path(out,'donor_age_conflicts.tsv'),sep='\t');fwrite(m[,.(Cells=.N),by=.(Dataset,Unit,eligible)],file.path(out,'age_eligibility.tsv'),sep='\t')
-# Same prespecified frontal excitatory cohort as the previous analysis method; no search over outcomes.
-sel<-which(m$eligible&m$Working_CellType=='Excitatory neurons'&m$BrainRegion=='Frontal cortex'&m$Unit=='Years');z<-m[sel];z[,group:=paste(Dataset,Canonical_Donor_ID,sep='|')];d<-z[,.(Dataset=Dataset[1],Canonical_Donor_ID=Canonical_Donor_ID[1],Cells=.N,Age=Age_num[1]),by=group][Cells>=20];z<-z[group%in%d$group];sel<-match(z$Cells,m$Cells);stopifnot(!anyNA(sel));I<-sparseMatrix(i=seq_along(sel),j=match(z$group,d$group),x=1/d$Cells[match(z$group,d$group)],dims=c(length(sel),nrow(d)));fwrite(d,file.path(out,'donor_metadata.tsv'),sep='\t')
-m[,All_Donor_Group:=paste(Dataset,Canonical_Donor_ID,sep='|')];ad<-m[,.(Dataset=Dataset[1],Canonical_Donor_ID=Canonical_Donor_ID[1],Cells=.N),by=All_Donor_Group];J<-sparseMatrix(i=seq_len(nrow(m)),j=match(m$All_Donor_Group,ad$All_Donor_Group),x=1/ad$Cells[match(m$All_Donor_Group,ad$All_Donor_Group)],dims=c(nrow(m),nrow(ad)))
-methods<-c(Raw='pca',RPCA='integrated.rpca',Harmony='integrated.harmony',scVI='integrated.scvi');cent<-allcent<-list()
-for(method in names(methods)){e<-readRDS(file.path(root,'00_input_audit/compact',paste0('embedding_',methods[[method]],'.rds')));stopifnot(identical(m$Cells,rownames(e)),ncol(e)==50L);cent[[method]]<-as.matrix(crossprod(I,e[sel,,drop=FALSE]));allcent[[method]]<-as.matrix(crossprod(J,e));rm(e);gc(FALSE);message(Sys.time(),' centroids ',method)}
-rm(I,J);gc(FALSE);saveRDS(list(donors=d,centroids=cent,all_donors=ad,all_centroids=allcent),file.path(out,'donor_centroids.rds'))
-pred<-folds<-list()
-for(study in unique(d$Dataset)){
- testall<-which(d$Dataset==study);train<-which(d$Dataset!=study & !d$Canonical_Donor_ID%in%d$Canonical_Donor_ID[testall]);test<-if(length(train))testall[d$Age[testall]>=min(d$Age[train]) & d$Age[testall]<=max(d$Age[train])]else integer();ok<-length(train)>=10L&&length(test)>=5L&&uniqueN(d$Age[test])>=3L
- folds[[study]]<-data.table(Dataset=study,Train_Donors=length(train),Test_Donors=length(test),Outside_Training_Range=length(testall)-length(test),Included=ok);if(!ok)next
- for(method in names(cent)){
-  e<-cent[[method]];nr<-sqrt(rowSums(e^2));for(metric in c('euclidean','cosine')){
-   dm<-if(metric=='euclidean')outer(nr[test]^2,nr[train]^2,'+')-2*tcrossprod(e[test,,drop=FALSE],e[train,,drop=FALSE]) else 1-tcrossprod((e/nr)[test,,drop=FALSE],(e/nr)[train,,drop=FALSE]);pr<-apply(dm,1,function(v)median(d$Age[train][order(v)[1:5]]));pred[[paste(study,method,metric)]]<-data.table(Dataset=study,Donor=d$Canonical_Donor_ID[test],Method=method,Distance=metric,Age=d$Age[test],Predicted_Age=pr,Median_Baseline=median(d$Age[train]))
+#!/usr/bin/env Rscript
+# Held-out age evaluation and donor-geometry comparison.
+suppressPackageStartupMessages({library(data.table);library(Matrix);library(SeuratObject)})
+setDTthreads(4L)
+
+args <- commandArgs(TRUE)
+stopifnot(length(args) == 2L)
+analysis_root <- normalizePath(args[1])
+figure_data_dir <- normalizePath(args[2])
+output_dir <- file.path(figure_data_dir, "tables", "age_signal")
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+find_unique_file <- function(root, filename) {
+  candidates <- list.files(root, recursive = TRUE, full.names = TRUE)
+  matches <- candidates[basename(candidates) == filename]
+  if (length(matches) != 1L) {
+    stop("Expected one ", filename, " under ", root, "; found ", length(matches))
   }
- }
+  matches[[1L]]
 }
-fwrite(rbindlist(folds),file.path(out,'heldout_fold_coverage.tsv'),sep='\t');p<-rbindlist(pred);if(nrow(p)){p[,`:=`(Absolute_Error=abs(Age-Predicted_Age),Baseline_Error=abs(Age-Median_Baseline))];fwrite(p,file.path(out,'age_predictions.tsv'),sep='\t');ds<-p[,.(Donors=.N,MAE=mean(Absolute_Error),Baseline_MAE=mean(Baseline_Error),Spearman=suppressWarnings(cor(Age,Predicted_Age,method='spearman'))),by=.(Dataset,Method,Distance)];fwrite(ds,file.path(out,'age_metrics_by_dataset.tsv'),sep='\t');fwrite(ds[,.(Datasets=.N,Donors=sum(Donors),Dataset_Equal_MAE=mean(MAE),Dataset_Equal_Baseline_MAE=mean(Baseline_MAE)),by=.(Method,Distance)],file.path(out,'age_metrics_summary.tsv'),sep='\t')}
-struc<-list();for(ds in unique(ad$Dataset)){ii<-which(ad$Dataset==ds);if(length(ii)<4)next;raw<-as.vector(dist(allcent$Raw[ii,,drop=FALSE]));for(method in names(allcent))struc[[paste(ds,method)]]<-data.table(Dataset=ds,Donors=length(ii),Method=method,Spearman_Donor_Distance_to_Raw=suppressWarnings(cor(raw,as.vector(dist(allcent[[method]][ii,,drop=FALSE])),method='spearman')))};fwrite(rbindlist(struc),file.path(out,'donor_structure_by_dataset.tsv'),sep='\t')
-write_json(list(state='COMPLETE',cells_in_donor_structure=nrow(m),age_cohort_cells=nrow(z),age_cohort_donors=nrow(d),test_predictions=nrow(p),sampling=FALSE,bootstrap=FALSE,permutation=FALSE,simulation=FALSE,cohort='Prespecified frontal excitatory neurons, exact postnatal ages; >=20 cells/donor',validation='Leave-one-study-out, exclude shared canonical donors from training, k=5 median, >=10 training and >=5 interpolation test donors with >=3 ages',limits='Fixed integrated representations are transductive; descriptive point estimates without resampling intervals. Donor-distance pairs are not treated as independent replicates.'),file.path(out,'COMPLETE.json'),auto_unbox=TRUE,pretty=TRUE);message(Sys.time(),' COMPLETE')
+
+metadata_file <- Sys.getenv("BRAINOMICS_METADATA_FILE", unset = "")
+if (!nzchar(metadata_file)) {
+  metadata_file <- find_unique_file(analysis_root, "metadata_working.rds")
+}
+metadata <- as.data.table(readRDS(metadata_file))
+
+annotation_file <- Sys.getenv(
+  "BRAINOMICS_ANNOTATION_TABLE",
+  unset = file.path("results", "annotation", "cluster_annotation.tsv")
+)
+if (!file.exists(annotation_file)) {
+  stop("Set BRAINOMICS_ANNOTATION_TABLE to the adopted cluster annotation")
+}
+annotation <- fread(annotation_file)
+annotation_type <- if ("CellType" %in% names(annotation)) {
+  "CellType"
+} else if ("Working_CellType" %in% names(annotation)) {
+  "Working_CellType"
+} else {
+  stop("The adopted annotation lacks a cell-type column")
+}
+stopifnot(
+  all(c("Cluster", "Cells") %in% names(annotation)),
+  nrow(annotation) == 75L,
+  !anyDuplicated(annotation$Cluster),
+  sum(annotation$Cells) == nrow(metadata),
+  "Cluster" %in% names(metadata)
+)
+adopted_type <- annotation[[annotation_type]][
+  match(as.character(metadata$Cluster), as.character(annotation$Cluster))
+]
+if (anyNA(adopted_type)) {
+  stop("The adopted annotation does not cover every metadata cluster")
+}
+metadata[, Working_CellType := adopted_type]
+eligible <-
+  !is.na(metadata$Global_Donor_ID) & nzchar(metadata$Global_Donor_ID) &
+  !grepl("unknown", metadata$Donor_ID_Verification_Status, ignore.case = TRUE) &
+  is.finite(metadata$Age_num) & is.finite(metadata$Age_Lower) &
+  is.finite(metadata$Age_Upper) & metadata$Age_Lower == metadata$Age_Upper &
+  metadata$Age_num == metadata$Age_Lower &
+  !grepl("mean|midpoint|range",
+         paste(metadata$Age_Representative_Method, metadata$Age), ignore.case = TRUE) &
+  !metadata$Dataset %in% c("GSE178175", "GSE144136")
+if ("Continuous_Age_Eligibility" %in% names(metadata)) {
+  eligible <- eligible & !grepl(
+    "not eligible|mean|midpoint|range",
+    metadata$Continuous_Age_Eligibility, ignore.case = TRUE
+  )
+}
+eligible[is.na(eligible)] <- FALSE
+metadata[, eligible := eligible]
+
+conflicts <- metadata[eligible == TRUE,
+  .(Ages = uniqueN(paste(Age_num, Unit))), by = Canonical_Donor_ID]
+metadata[Canonical_Donor_ID %in% conflicts[Ages != 1L, Canonical_Donor_ID],
+         eligible := FALSE]
+fwrite(conflicts[Ages != 1L], file.path(output_dir, "donor_age_conflicts.tsv"), sep = "\t")
+fwrite(metadata[, .(Cells = .N), by = .(Dataset, Unit, eligible)],
+       file.path(output_dir, "age_eligibility.tsv"), sep = "\t")
+
+# Restrict the age evaluation to frontal-cortex excitatory neurons with exact ages.
+selected <- which(
+  metadata$eligible & metadata$Working_CellType == "Excitatory neurons" &
+  metadata$BrainRegion == "Frontal cortex" & metadata$Unit == "Years"
+)
+age_cells <- metadata[selected]
+age_cells[, group := paste(Dataset, Canonical_Donor_ID, sep = "|")]
+donors <- age_cells[, .(
+  Dataset = Dataset[1L], Canonical_Donor_ID = Canonical_Donor_ID[1L],
+  Cells = .N, Age = Age_num[1L]
+), by = group][Cells >= 20L]
+age_cells <- age_cells[group %in% donors$group]
+selected <- match(age_cells$Cells, metadata$Cells)
+stopifnot(!anyNA(selected))
+age_membership <- sparseMatrix(
+  i = seq_along(selected), j = match(age_cells$group, donors$group),
+  x = 1 / donors$Cells[match(age_cells$group, donors$group)],
+  dims = c(length(selected), nrow(donors))
+)
+fwrite(donors, file.path(output_dir, "donor_metadata.tsv"), sep = "\t")
+
+metadata[, All_Donor_Group := paste(Dataset, Canonical_Donor_ID, sep = "|")]
+all_donors <- metadata[, .(
+  Dataset = Dataset[1L], Canonical_Donor_ID = Canonical_Donor_ID[1L], Cells = .N
+), by = All_Donor_Group]
+all_membership <- sparseMatrix(
+  i = seq_len(nrow(metadata)), j = match(metadata$All_Donor_Group, all_donors$All_Donor_Group),
+  x = 1 / all_donors$Cells[match(metadata$All_Donor_Group, all_donors$All_Donor_Group)],
+  dims = c(nrow(metadata), nrow(all_donors))
+)
+
+reductions <- c(
+  Raw = "pca", RPCA = "integrated.rpca",
+  Harmony = "integrated.harmony", scVI = "integrated.scvi"
+)
+age_centroids <- list()
+all_centroids <- list()
+for (method in names(reductions)) {
+  embedding_file <- find_unique_file(
+    analysis_root, paste0("embedding_", reductions[[method]], ".rds")
+  )
+  embedding <- readRDS(embedding_file)
+  stopifnot(identical(metadata$Cells, rownames(embedding)), ncol(embedding) == 50L)
+  age_centroids[[method]] <- as.matrix(crossprod(
+    age_membership, embedding[selected, , drop = FALSE]
+  ))
+  all_centroids[[method]] <- as.matrix(crossprod(all_membership, embedding))
+  rm(embedding)
+  gc(FALSE)
+}
+rm(age_membership, all_membership)
+gc(FALSE)
+saveRDS(
+  list(donors = donors, centroids = age_centroids,
+       all_donors = all_donors, all_centroids = all_centroids),
+  file.path(output_dir, "donor_centroids.rds")
+)
+
+prediction_rows <- list()
+fold_rows <- list()
+for (study in unique(donors$Dataset)) {
+  all_test <- which(donors$Dataset == study)
+  train <- which(
+    donors$Dataset != study &
+    !donors$Canonical_Donor_ID %in% donors$Canonical_Donor_ID[all_test]
+  )
+  test <- if (length(train)) {
+    all_test[
+      donors$Age[all_test] >= min(donors$Age[train]) &
+      donors$Age[all_test] <= max(donors$Age[train])
+    ]
+  } else integer()
+  included <- length(train) >= 10L && length(test) >= 5L &&
+    uniqueN(donors$Age[test]) >= 3L
+  fold_rows[[study]] <- data.table(
+    Dataset = study, Train_Donors = length(train), Test_Donors = length(test),
+    Outside_Training_Range = length(all_test) - length(test), Included = included
+  )
+  if (!included) next
+
+  for (method in names(age_centroids)) {
+    embedding <- age_centroids[[method]]
+    norms <- sqrt(rowSums(embedding^2))
+    for (distance in c("euclidean", "cosine")) {
+      distance_matrix <- if (distance == "euclidean") {
+        outer(norms[test]^2, norms[train]^2, "+") -
+          2 * tcrossprod(embedding[test, , drop = FALSE],
+                         embedding[train, , drop = FALSE])
+      } else {
+        1 - tcrossprod(
+          (embedding / norms)[test, , drop = FALSE],
+          (embedding / norms)[train, , drop = FALSE]
+        )
+      }
+      predicted <- apply(distance_matrix, 1L, function(value) {
+        median(donors$Age[train][order(value)[1:5]])
+      })
+      prediction_rows[[paste(study, method, distance)]] <- data.table(
+        Dataset = study, Donor = donors$Canonical_Donor_ID[test],
+        Method = method, Distance = distance, Age = donors$Age[test],
+        Predicted_Age = predicted, Median_Baseline = median(donors$Age[train])
+      )
+    }
+  }
+}
+fwrite(rbindlist(fold_rows), file.path(output_dir, "heldout_fold_coverage.tsv"), sep = "\t")
+predictions <- rbindlist(prediction_rows)
+if (nrow(predictions)) {
+  predictions[, `:=`(
+    Absolute_Error = abs(Age - Predicted_Age),
+    Baseline_Error = abs(Age - Median_Baseline)
+  )]
+  fwrite(predictions, file.path(output_dir, "age_predictions.tsv"), sep = "\t")
+  by_dataset <- predictions[, .(
+    Donors = .N, MAE = mean(Absolute_Error),
+    Baseline_MAE = mean(Baseline_Error),
+    Spearman = suppressWarnings(cor(Age, Predicted_Age, method = "spearman"))
+  ), by = .(Dataset, Method, Distance)]
+  fwrite(by_dataset, file.path(output_dir, "age_metrics_by_dataset.tsv"), sep = "\t")
+  fwrite(by_dataset[, .(
+    Datasets = .N, Donors = sum(Donors), Dataset_Equal_MAE = mean(MAE),
+    Dataset_Equal_Baseline_MAE = mean(Baseline_MAE)
+  ), by = .(Method, Distance)],
+  file.path(output_dir, "age_metrics_summary.tsv"), sep = "\t")
+}
+
+structure_rows <- list()
+for (study in unique(all_donors$Dataset)) {
+  rows <- which(all_donors$Dataset == study)
+  if (length(rows) < 4L) next
+  raw_distances <- as.vector(dist(all_centroids$Raw[rows, , drop = FALSE]))
+  for (method in names(all_centroids)) {
+    structure_rows[[paste(study, method)]] <- data.table(
+      Dataset = study, Donors = length(rows), Method = method,
+      Spearman_Donor_Distance_to_Raw = suppressWarnings(cor(
+        raw_distances,
+        as.vector(dist(all_centroids[[method]][rows, , drop = FALSE])),
+        method = "spearman"
+      ))
+    )
+  }
+}
+fwrite(rbindlist(structure_rows),
+       file.path(output_dir, "donor_structure_by_dataset.tsv"), sep = "\t")
+message("Age evaluation and donor-geometry summaries written")

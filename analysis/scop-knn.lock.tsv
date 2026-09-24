@@ -1,2 +1,0 @@
-Package	Version	Source_Archive	Source_SHA256	Source_Base_Commit	Patch_SHA256	R_Version	Dependency_Profile	Used_For
-scop	0.9.0	scop-0.9.0-brainomics.tar.gz	8dab29f2afc0a3270a30508a17e8aadabe0055d6c49d5c89ea3818b1cc3b9189	231b2aab342cd82b49395be7a6ab65fac72e1c90	413d911f60b38c3ce863d664c2768c6dd2c59c270f39708a33efa38090bbb8ed	4.5.1	integration r-packages.lock.tsv dependencies with an isolated scop library	complete EGAD RunKNNMap RunKNNPredict CellCorHeatmap sensitivity analysis

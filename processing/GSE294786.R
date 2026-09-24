@@ -76,7 +76,7 @@ validate_source_file(metadata_file, metadata_record)
 
 if (!metadata_only &&
   (overwrite || !all(file.exists(c(converted_file, conversion_audit))))) {
-  python <- "python3"
+  python <- Sys.getenv("BRAINOMICS_PYTHON", "python3")
   converter_args <- c(
     converter,
     "--counts", counts_file,

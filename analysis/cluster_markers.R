@@ -241,7 +241,7 @@ global_sum <- matrix(
 global_detected <- global_sum
 global_cluster_cells <- global_sum
 global_available_cells <- stats::setNames(numeric(n_features), features)
-dataset_audit_rows <- vector("list", n_datasets)
+dataset_coverage_rows <- vector("list", n_datasets)
 
 for (dataset_index in seq_len(n_datasets)) {
   dataset <- layer_map$Dataset[[dataset_index]]
@@ -298,7 +298,7 @@ for (dataset_index in seq_len(n_datasets)) {
   global_available_cells[feature_index] <-
     global_available_cells[feature_index] + total_cells
 
-  dataset_audit_rows[[dataset_index]] <- data.frame(
+  dataset_coverage_rows[[dataset_index]] <- data.frame(
     Dataset = dataset,
     Layer = checkpoint$Layer,
     Cells = total_cells,
@@ -478,12 +478,12 @@ statistics_file <- file.path(output_dir, "cluster_marker_statistics.tsv.gz")
 top_file <- file.path(output_dir, "cluster_top_positive_negative_markers.tsv")
 summary_file <- file.path(output_dir, "cluster_marker_summary.tsv")
 composition_file <- file.path(output_dir, "cluster_metadata_composition.tsv.gz")
-dataset_audit_file <- file.path(output_dir, "dataset_marker_audit.tsv")
+dataset_coverage_file <- file.path(output_dir, "dataset_marker_coverage.tsv")
 write_tsv(as.data.frame(marker_statistics), statistics_file)
 write_tsv(as.data.frame(top_markers), top_file)
 write_tsv(as.data.frame(cluster_summary), summary_file)
 write_tsv(as.data.frame(metadata_composition), composition_file)
-write_tsv(as.data.frame(rbindlist(dataset_audit_rows)), dataset_audit_file)
+write_tsv(as.data.frame(rbindlist(dataset_coverage_rows)), dataset_coverage_file)
 
 output_manifest <- data.frame(
   File = basename(c(
@@ -491,7 +491,7 @@ output_manifest <- data.frame(
     top_file,
     summary_file,
     composition_file,
-    dataset_audit_file
+    dataset_coverage_file
   )),
   stringsAsFactors = FALSE
 )

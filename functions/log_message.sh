@@ -16,25 +16,12 @@ _thisutils_log_message_source() {
   if [ -n "${LOG_MESSAGE_SH:-}" ] && [ -f "${LOG_MESSAGE_SH}" ]; then
     printf '%s\n' "${LOG_MESSAGE_SH}"; return 0
   fi
-  if command -v Rscript >/dev/null 2>&1; then
+  if command -v "${BRAINOMICS_RSCRIPT:-Rscript}" >/dev/null 2>&1; then
     local resolved
     # Current layout: thisutils/scripts/; earlier installs used python/.
-    resolved=$(Rscript --vanilla -e 'p <- system.file("scripts/log_message.sh", package = "thisutils"); if (!nzchar(p)) p <- system.file("python/log_message.sh", package = "thisutils"); cat(p)' 2>/dev/null)
+    resolved=$("${BRAINOMICS_RSCRIPT:-Rscript}" --vanilla -e 'p <- system.file("scripts/log_message.sh", package = "thisutils"); if (!nzchar(p)) p <- system.file("python/log_message.sh", package = "thisutils"); cat(p)' 2>/dev/null)
     if [ -n "$resolved" ] && [ -f "$resolved" ]; then printf '%s\n' "$resolved"; return 0; fi
   fi
-  # Fallback that does not need R: scan common R library locations.
-  local base sub
-  for root in "$HOME/R"/*/*/library "$R_LIBS_USER" "$HOME/miniconda3/envs"/*/lib/R/library \
-              "$HOME/anaconda3/envs"/*/lib/R/library "$HOME/.omicos/env/.venv/lib/R/library" \
-              /opt/homebrew/lib/R/*/site-library /usr/local/lib/R/*/site-library \
-              /Library/Frameworks/R.framework/Versions/*/Resources/library "$HOME/Library/R"/*/library; do
-    [ -d "$root" ] || continue
-    for sub in scripts python; do
-      for base in "$root/thisutils/$sub"; do
-        [ -f "$base/log_message.sh" ] && { printf '%s\n' "$base/log_message.sh"; return 0; }
-      done
-    done
-  done
   return 1
 }
 

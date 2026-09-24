@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-# Genuine small algorithm execution; generated counts are software test data.
+# Small execution of the PCA, RPCA, Harmony, neighbor and clustering algorithms.
 suppressPackageStartupMessages({library(Seurat);library(Matrix)})
-args<-commandArgs(TRUE);stopifnot(length(args)==1);out<-args[1];dir.create(out,recursive=TRUE,showWarnings=FALSE)
+stopifnot(length(commandArgs(TRUE)) == 0L)
 set.seed(20260730)
 x<-matrix(rpois(600*360,lambda=2),600,360,dimnames=list(paste0('g',1:600),paste0('c',1:360)))
 state<-rep(rep(1:3,each=60),2);batch<-rep(c('A','B'),each=180)
@@ -21,8 +21,5 @@ harm<-Embeddings(obj,'harmony')
 for(z in list(raw,rpca,harm))stopifnot(nrow(z)==360,ncol(z)==10,all(is.finite(z)),setequal(rownames(z),colnames(x)))
 stopifnot(max(abs(raw-rpca[rownames(raw),]))>1e-6,max(abs(raw-harm[rownames(raw),]))>1e-6)
 obj<-FindNeighbors(obj,reduction='harmony',dims=1:10,verbose=FALSE);obj<-FindClusters(obj,resolution=0.5,random.seed=20260730,verbose=FALSE)
-writeMM(x,file.path(out,'counts.mtx'));writeLines(colnames(x),file.path(out,'cells.txt'));writeLines(rownames(x),file.path(out,'genes.txt'))
-write.table(data.frame(Cell=colnames(x),Batch=batch,State=state),file.path(out,'metadata.tsv'),sep='\t',quote=FALSE,row.names=FALSE)
-saveRDS(list(Raw=raw,RPCA=rpca,Harmony=harm),file.path(out,'embeddings.rds'))
-writeLines(capture.output(sessionInfo()),file.path(out,'sessionInfo.txt'))
-writeLines('PASS: actual normalization, HVG, PCA, RPCA anchors/integration, Harmony, neighbors and clustering on 360 synthetic cells; no biological performance inference.',file.path(out,'R_SUCCESS'))
+stopifnot(length(unique(Idents(obj))) > 1L)
+cat('integration algorithm checks passed\n')

@@ -146,12 +146,15 @@ def main():
             check((repo/target).is_file(), f'{driver_path.name} references missing {target}')
 
     # 5. environment locks ----------------------------------------------------
-    for lock in ['r-packages.lock.tsv', 'r-preprocessing-packages.lock.tsv', 'r-local-validation.lock.tsv']:
+    for lock in ['r-packages.lock.tsv']:
         path = repo/'environment'/lock
         check(path.is_file(), f'missing environment/{lock}')
         if path.is_file():
             rows = read_tsv(path)
             check(rows and {'Package', 'Version'} <= set(rows[0].keys()), f'environment/{lock} lacks Package/Version columns')
+            versions = {row['Package']: row['Version'] for row in rows}
+            check(len(versions) == len(rows), f'environment/{lock} has duplicate packages')
+            check(versions.get('R') == '4.5.1', 'the workflow requires one R 4.5.1 environment')
     for overview in ['figures/fig1.svg', 'figures/fig1-night.svg']:
         check((repo/overview).is_file(), f'README overview figure {overview} is missing')
 

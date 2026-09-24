@@ -148,7 +148,7 @@ if (h5ad_required && !is.null(config$expected_input_sha256)) {
 
 export_script <- file.path(repo_dir, "processing/export_h5ad_metadata.py")
 if (metadata_export_required) {
-  python <- "python3"
+  python <- Sys.getenv("BRAINOMICS_PYTHON", "python3")
   status <- system2(
     python,
     c(

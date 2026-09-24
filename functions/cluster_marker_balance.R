@@ -1,13 +1,12 @@
 #!/usr/bin/env Rscript
-# Exploratory display of selected marker-set detection, not annotation confidence.
+# Marker-expression panel for the adopted cell-type annotation.
 suppressPackageStartupMessages({library(data.table); library(ggplot2)})
 source("functions/config.R")
 setDTthreads(2)
 dir.create("figures", recursive = TRUE, showWarnings = FALSE)
 mapping <- a[,.(Cluster,CellType=Working_CellType,Cells)]
 spec <- fread("results/annotation/display_markers.tsv")
-# Measured genes omitted from the 33-gene display: role-set support plus
-# canonical markers that were filtered out of the preview.
+# Add supporting markers used in the complete marker-expression panel.
 spec <- rbind(spec, data.table(
   Marker_Group = c(
     "Astrocytes", "Astrocytes", "Astrocytes",
@@ -49,7 +48,6 @@ negative <- split(sets[Direction == "Competing/context controls", Gene],
 stopifnot(!anyDuplicated(sets[, .(CellType, Gene)]), uniqueN(sets$Gene) >= 33L)
 full_evidence <- evidence[Gene %in% unique(sets$Gene)]
 stopifnot(nrow(full_evidence) == uniqueN(sets$Gene) * 75L)
-fwrite(full_evidence, "results/annotation/full_validation_marker_by_75.tsv", sep = "\t")
 measured <- merge(merge(mapping, sets, by = "CellType", allow.cartesian = TRUE),
   evidence[, .(Cluster, Gene, Available_Cells, MeanLog, PctPositive)],
   by = c("Cluster", "Gene"), all.x = TRUE)
@@ -132,7 +130,7 @@ stopifnot(uniqueN(measured$Cluster) == 75L,
   !anyDuplicated(measured[, .(Cluster, Direction, Gene)]))
 fwrite(measured[, .(Cluster, CellType, Cells, Direction, Gene, Available_Cells,
   MeanLog, PctPositive, GeneZ)],
-  "results/annotation/cluster_marker_balance_preview_source.tsv", sep = "\t")
+  "results/annotation/figure3_marker_expression.tsv", sep = "\t")
 p <- ggplot() +
   geom_rect(data = bands, aes(xmin = .4, xmax = panel_right, ymin = low, ymax = high),
     fill = "grey98", colour = "grey65", linewidth = .25) +

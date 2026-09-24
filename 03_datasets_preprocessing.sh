@@ -12,10 +12,6 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 overwrite="${1:-false}"
 selected_dataset="${2:-}"
 
-if [ -x "$repo_dir/.venv/bin/python3" ] || [ -x "$repo_dir/.venv/bin/python" ]; then
-  export PATH="$repo_dir/.venv/bin:$PATH"
-fi
-
 datasets=(
   AllenM1
   EGAS00001006537
@@ -52,7 +48,7 @@ if [ -n "$selected_dataset" ]; then
     fi
   done
   if [ "$supported" = false ]; then
-    echo "Unsupported formal dataset: $selected_dataset" >&2
+    echo "Unsupported dataset: $selected_dataset" >&2
     exit 2
   fi
   datasets=("$selected_dataset")
@@ -66,9 +62,9 @@ for dataset in "${datasets[@]}"; do
 done
 
 if [ -z "$selected_dataset" ]; then
-  Rscript \
+  "$BRAINOMICS_RSCRIPT" \
     processing/standardize_datasets.R \
     --combine-only
 fi
 
-printf 'Validated %s formal dataset bundle(s)\n' "${#datasets[@]}"
+printf 'Processed %s dataset bundle(s)\n' "${#datasets[@]}"

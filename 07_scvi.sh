@@ -1,50 +1,32 @@
 #!/usr/bin/env bash
 # Fit scVI on every raw-count reference cell and export the latent space.
 #
-# Optional BRAINOMICS_RUN_ROOT: when set, the stage runs inside
-# $BRAINOMICS_RUN_ROOT/pipeline instead of this checkout.
+# Input and output are read and written under BRAINOMICS_RESULTS_DIR.
 #
 # Requirements: 16 GB VRAM; 32 GB host memory.
 set -euo pipefail
 
 BRAINOMICS_STAGE=07_scvi
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/functions/pipeline_lib.sh"
-source "functions/utils.sh"
 
+cd "$BRAINOMICS_REPO_ROOT"
 brainomics_require_executor
 
 overwrite="${1:-F}"
 
-code_root="$BRAINOMICS_REPO_ROOT"
-if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
-  code_root="$BRAINOMICS_RUN_ROOT/pipeline"
-  brainomics_require_dir "$code_root"
-fi
-cd "$code_root"
-
 if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
-  run_root_spec=()
-  if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
-    run_root_spec=("RUN_ROOT=$BRAINOMICS_RUN_ROOT")
-  fi
-  brainomics_run_sbatch hpc/scvi.sbatch \
-    "OVERWRITE=$overwrite" "${run_root_spec[@]+"${run_root_spec[@]}"}"
+  brainomics_run_sbatch hpc/scvi.sbatch "OVERWRITE=$overwrite"
   exit 0
 fi
 
-check_command python3
-if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
-  input_dir="$BRAINOMICS_RUN_ROOT/integration/scvi_input"
-  output_dir="$BRAINOMICS_RUN_ROOT/integration/scvi_output"
-else
-  input_dir="$BRAINOMICS_RESULTS_DIR/scvi_input"
-  output_dir="$BRAINOMICS_RESULTS_DIR/scvi_output"
-fi
+brainomics_require_command "$BRAINOMICS_SCVI_PYTHON"
+input_dir="$BRAINOMICS_RESULTS_DIR/scvi_input"
+output_dir="$BRAINOMICS_RESULTS_DIR/scvi_output"
 brainomics_require_dir "$input_dir"
 mkdir -p "$output_dir"
 
 scvi_command=(
-  python3 integration/run_scvi.py
+  "$BRAINOMICS_SCVI_PYTHON" integration/run_scvi.py
   --input-dir "$input_dir"
   --output-dir "$output_dir"
   --seed "${BRAINOMICS_INTEGRATION_SEED:-20260730}"

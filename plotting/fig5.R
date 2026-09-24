@@ -18,6 +18,7 @@ source_dir <- Sys.getenv('BRAINOMICS_FIG5_SOURCE_DIR','figures')
 out <- Sys.getenv('BRAINOMICS_FIG5_OUTPUT_DIR','figures')
 dir.create(out,recursive=TRUE,showWarnings=FALSE)
 e <- fread(file.path(source_dir,'fig5_full_gene_type_source.tsv'))
+if('Formal_CellType'%in%names(e) && !'CellType'%in%names(e)) setnames(e,'Formal_CellType','CellType')
 s <- fread(file.path(source_dir,'fig5_full_paired_study_source.tsv'))[Paired_Donors >= 2L]
 f <- fread(file.path(source_dir,'fig5_fixed_paired_donor_source.tsv'))
 q <- fread(file.path(source_dir,'fig5_full_direction_statistics.tsv'))
@@ -28,7 +29,7 @@ stopifnot(nrow(e) == 132L, uniqueN(s$Dataset) == 16L,
           setequal(f$Dataset,c('ROSMAP','SomaMut')))
 
 e[,`:=`(Gene=factor(Gene,levels=genes),
-        Formal_CellType=factor(Formal_CellType,levels=rev(types)),
+        CellType=factor(CellType,levels=rev(types)),
         DetectionPct=100*Study_Equal_Detection)]
 s[,`:=`(Gene=factor(Gene,levels=rev(genes)),
         Y=as.numeric(factor(Gene,levels=rev(genes))))]
@@ -66,7 +67,7 @@ common <- theme_minimal(base_size=9,base_family='Arial')+
 
 # Full cell-type names do not fit as single-line 45-degree labels in 12 columns.
 # Put cell types on the vertical axis to keep every name legible without wrapping.
-a <- ggplot(e,aes(x=Gene,y=Formal_CellType,size=DetectionPct,colour=Z))+
+a <- ggplot(e,aes(x=Gene,y=CellType,size=DetectionPct,colour=Z))+
   geom_point(alpha=.95)+coord_fixed(ratio=1,clip='off')+
   scale_x_discrete(expand=expansion(add=.55))+
   scale_y_discrete(labels=type_labels,expand=expansion(add=.5))+

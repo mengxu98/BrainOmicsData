@@ -12,7 +12,9 @@ suppressPackageStartupMessages({
 source("functions/config.R")
 
 metadata_path <- file.path(run, "01_metadata", "metadata_working.rds")
-embedding_path <- file.path(root, "00_input_audit", "compact", "embedding_umap.rpca.rds")
+embedding_path <- resolve_input_file(
+  "BRAINOMICS_RPCA_UMAP_FILE", root, "embedding_umap.rpca.rds"
+)
 summary_dir <- file.path(run, "01_metadata")
 
 metadata <- as.data.table(readRDS(metadata_path))

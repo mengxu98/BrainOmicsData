@@ -11,19 +11,11 @@
 set -euo pipefail
 
 repo_dir="${BRAINOMICS_REPO_ROOT:?run through functions/pipeline_lib.sh or set BRAINOMICS_REPO_ROOT}"
-data_root="${BRAINOMICS_DATA_ROOT:?set BRAINOMICS_DATA_ROOT}"
-integration_dir="$data_root/integration_25"
-scvi_prefix="${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/envs/brainomics-scvi"
-runtime_lib_dir="${BRAINOMICS_HPC_ROOT:?set BRAINOMICS_HPC_ROOT in hpc/local.env}/software_sources/lib/brainomics-scvi-runtime"
+source "$repo_dir/functions/pipeline_lib.sh"
 overwrite="${OVERWRITE:-F}"
-run_dir="$integration_dir/run"
+run_dir="$BRAINOMICS_RESULTS_DIR/run"
 
-export LD_LIBRARY_PATH="$runtime_lib_dir:${LD_LIBRARY_PATH:-}"
-export PATH="$scvi_prefix/bin:$PATH"
 export BRAINOMICS_EXECUTOR=local
-if [ -n "${RUN_ROOT:-}" ]; then
-  export BRAINOMICS_RUN_ROOT="$RUN_ROOT"
-fi
 export BRAINOMICS_SCVI_ACCELERATOR=gpu
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-16}"
 

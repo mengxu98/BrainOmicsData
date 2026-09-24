@@ -4,8 +4,8 @@ This directory contains parameter records, overlap counts, per-cluster metrics,
 and aggregate TSVs for five Louvain clustering settings on a fixed graph.
 The analysis scripts are:
 
-- `analysis/revision_sources/full_graph_stability.R`: executes the five settings.
-- `analysis/revision_sources/summarize_stability.R`: summarizes partition and
+- `analysis/sensitivity/full_graph_stability.R`: executes the five settings.
+- `analysis/sensitivity/summarize_stability.R`: summarizes partition and
   majority-matched cell-type stability.
 
 ## Settings and retained results
@@ -26,7 +26,7 @@ for the baseline before comparing its labels with the reference partition.
 | 20260730 | 2.5 | 86 | 0.685946143287341 |
 
 `stability/run_1/` through `stability/run_5/` contain the run parameters,
-completion records, partition overlaps, and per-cluster summaries.
+runtime, completion record, partition overlaps, and per-cluster summaries.
 `stability/stability_summary.tsv`, `stability_by_dataset.tsv`,
 `stability_by_celltype.tsv`, and `stability_by_cluster.tsv` contain the combined
 results. `annotations/final_cluster_annotation.tsv` supplies the 75-cluster,
@@ -40,8 +40,9 @@ are outside their scope.
 
 ## Reproduction inputs and commands
 
-The execution script accepts three arguments: an input base directory, an
-existing output directory, and a task number (1–5). The input base must contain these files in the layout expected by the script:
+The execution script accepts three arguments: an input directory relative to
+`BRAINOMICS_DATA_ROOT`, an output directory, and a task number (1–5). The input
+directory is resolved with `brainomics_data_path()` and must contain:
 
 ```text
 rpca_symmetric_weighted_knn_graph.rds
@@ -50,14 +51,14 @@ cluster_assignments.rds
 
 Use a new output directory, preserve the original cell order, and use the
 integration environment recorded in `environment/`. Run task 1 first; the
-remaining tasks require its `BASELINE_REPLAY_PASS` marker.
+remaining tasks require its summary to show an adjusted Rand index of 1.
 
 ```sh
 mkdir -p /path/to/new-output
-Rscript --vanilla analysis/revision_sources/full_graph_stability.R /path/to/input-base /path/to/new-output 1
+Rscript --vanilla analysis/sensitivity/full_graph_stability.R integration_25 /path/to/new-output 1
 # Repeat with task numbers 2, 3, 4 and 5 after task 1 passes.
 cp provenance/clustering_sensitivity/annotations/final_cluster_annotation.tsv /path/to/new-output/
-Rscript --vanilla analysis/revision_sources/summarize_stability.R /path/to/input-base /path/to/new-output
+Rscript --vanilla analysis/sensitivity/summarize_stability.R integration_25 /path/to/new-output
 ```
 
 The full graph and per-cell assignments are required to rerun clustering and

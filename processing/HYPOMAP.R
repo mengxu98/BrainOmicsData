@@ -1,7 +1,7 @@
 source("functions/prepare_env.R")
 
-data_dir <- "../../data/BrainOmicsData/raw/HYPOMAP"
-res_dir <- check_dir("../../data/BrainOmicsData/processed/HYPOMAP/")
+data_dir <- brainomics_data_path("raw/HYPOMAP")
+res_dir <- check_dir(brainomics_data_path("processed/HYPOMAP/"))
 
 thisutils::log_message("Start loading data...")
 

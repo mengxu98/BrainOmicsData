@@ -10,7 +10,7 @@ set -e
 source "$(dirname "$0")/../functions/utils.sh"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_ROOT="$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData"
+DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData}"
 DATA_DIR="$DATA_ROOT/raw/Wang_2025"
 
 DOWNLOAD_LIST="

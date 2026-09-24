@@ -9,7 +9,9 @@ source "$(dirname "$0")/../functions/utils.sh"
 
 # https://cells.ucsc.edu/?ds=rosmap-ad-aging-brain+ad-atac+rna-hq
 
-DATA_DIR="../../data/BrainOmicsData/raw/ROSMAP/RNA"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData}"
+DATA_DIR="$DATA_ROOT/raw/ROSMAP/RNA"
 
 log_message "Starting ROSMAP UCSC snRNA-seq data download..."
 

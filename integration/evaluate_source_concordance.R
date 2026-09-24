@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(data.table))
 source("functions/utils.R")
+source("functions/data_paths.R")
 setDTthreads(2L)
-root <- "../../data/BrainOmicsData/integration_25/heldout_mapping"
-validate_annotation_statistics(file.path(root, "rpca_mapping"))
+root <- file.path(brainomics_results_dir(), "heldout_mapping")
 mapping <- fread(file.path(root, "rpca_mapping/query_rpca_mapping.tsv.gz"))
 stopifnot(
   nrow(mapping) == 1655074L, !anyDuplicated(mapping$Cells),
@@ -141,7 +141,7 @@ write_tsv(
       "Source-defined absence from reference; excluded only from direct concordance, not from mapping or plots"
     )
   ),
-  file.path(output_dir, "source_concordance_audit.tsv")
+  file.path(output_dir, "source_concordance_parameters.tsv")
 )
-write_annotation_input(output_dir, setdiff(list.files(output_dir, pattern = "[.]tsv$"), "annotation_input.tsv"))
-message("PASS: current RPCA donor-level mapping evaluation; no scVI-derived mapping metrics reused")
+write_result_manifest(output_dir, setdiff(list.files(output_dir, pattern = "[.]tsv$"), "result_manifest.tsv"))
+message("Source-label concordance results written")

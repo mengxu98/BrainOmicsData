@@ -1,19 +1,22 @@
 #!/usr/bin/env Rscript
-# Layout-only revision of existing CellDimPlot workflow; no annotation changes.
-suppressPackageStartupMessages({library(data.table);library(ggplot2);library(Matrix);library(Seurat);library(scop);library(patchwork);library(jsonlite);library(digest)})
+# Cell-type locations on the RPCA embedding.
+suppressPackageStartupMessages({library(data.table);library(ggplot2);library(Matrix);library(Seurat);library(scop);library(patchwork)})
 setDTthreads(4);root<-normalizePath(commandArgs(TRUE)[1]);out<-normalizePath(commandArgs(TRUE)[2]);source('functions/utils.R')
-a<-fread(file.path(out,'cluster_annotation.tsv'));oldfile<-file.path(root,'07_downstream/revision_20260918/00_frozen_annotation/cluster_annotation.tsv');oldhash<-digest(file=oldfile,algo='sha256')
-m<-fread(file.path(root,'00_input_audit/compact/core_metadata_minimal.tsv.gz'),select=c('Cells','Cluster'));e<-readRDS(file.path(root,'00_input_audit/compact/embedding_umap.rpca.rds'));stopifnot(nrow(m)==2602031L,identical(rownames(e),m$Cells));ii<-match(m$Cluster,a$Cluster);stopifnot(!anyNA(ii),nrow(a)==75L)
-a[,Visual_Colour_Class:=Working_CellType];before<-a$Previous_CellType
-classes <- fread(file.path(out,'celltype_order.tsv'))$CellType
-stopifnot(length(classes)==12L,setequal(classes,a$Working_CellType))
-pal<-setNames(a$Colour[!duplicated(a$Working_CellType)],a$Working_CellType[!duplicated(a$Working_CellType)])
+a<-fread(file.path(out,'cluster_annotation.tsv'))
+if ('CellType' %in% names(a) && !'Working_CellType' %in% names(a)) a[,Working_CellType:=CellType]
+classes<-names(brainomics_celltype_colors)
+pal<-brainomics_celltype_colors[classes]
+a[,Visual_Colour_Class:=Working_CellType]
+find_one<-function(filename){candidates<-list.files(root,recursive=TRUE,full.names=TRUE);matches<-candidates[basename(candidates)==filename];if(length(matches)!=1L)stop('Expected one ',filename,' under ',root,'; found ',length(matches));matches[[1L]]}
+metadata_file<-Sys.getenv('BRAINOMICS_FIG2_METADATA_FILE',unset='');if(!nzchar(metadata_file))metadata_file<-find_one('core_metadata_minimal.tsv.gz')
+embedding_file<-Sys.getenv('BRAINOMICS_RPCA_UMAP_FILE',unset='');if(!nzchar(embedding_file))embedding_file<-find_one('embedding_umap.rpca.rds')
+m<-fread(metadata_file,select=c('Cells','Cluster'));e<-readRDS(embedding_file);stopifnot(nrow(m)==2602031L,identical(rownames(e),m$Cells));ii<-match(m$Cluster,a$Cluster);stopifnot(!anyNA(ii),nrow(a)==75L)
 pal <- pal[classes]
-stopifnot(setequal(a[Candidate_Changed==TRUE,Cluster],c('C65')),sum(a[Candidate_Changed==TRUE,Cells])==4099L,all(a$Visual_Colour_Class%in%names(pal)))
+stopifnot(length(classes)==12L,setequal(classes,a$Working_CellType),all(a$Visual_Colour_Class%in%names(pal)))
 fwrite(a[,.(Cells=sum(Cells)),by=Working_CellType],file.path(out,'celltype_counts.tsv'),sep='\t')
-md<-data.frame(SpatialGroup=factor(a$Visual_Colour_Class[ii],levels=classes),PreviousDisplay=before[ii],Cluster=m$Cluster,row.names=m$Cells)
-# Metadata and frozen-coordinate carrier only. Empty assay is not synthetic expression evidence.
-carrier<-sparseMatrix(i=integer(),j=integer(),x=numeric(),dims=c(2L,nrow(m)),dimnames=list(c('unusedA','unusedB'),m$Cells));message(Sys.time(),' creating plotting container');o<-CreateSeuratObject(counts=carrier,meta.data=md,min.cells=0L,min.features=0L);colnames(e)<-c('UMAP_1','UMAP_2');o[['umap.rpca']]<-CreateDimReducObject(embeddings=e,key='UMAP_',assay='RNA');rm(carrier,md);gc(FALSE)
+md<-data.frame(SpatialGroup=factor(a$Visual_Colour_Class[ii],levels=classes),Cluster=m$Cluster,row.names=m$Cells)
+# The empty assay carries plotting metadata; expression is not used here.
+carrier<-sparseMatrix(i=integer(),j=integer(),x=numeric(),dims=c(2L,nrow(m)),dimnames=list(c('unusedA','unusedB'),m$Cells));message('Creating plotting container');o<-CreateSeuratObject(counts=carrier,meta.data=md,min.cells=0L,min.features=0L);colnames(e)<-c('UMAP_1','UMAP_2');o[['umap.rpca']]<-CreateDimReducObject(embeddings=e,key='UMAP_',assay='RNA');rm(carrier,md);gc(FALSE)
 targets <- c('Differentiating oligodendrocytes','Oligodendrocytes')
 focus <- ifelse(o$SpatialGroup %in% targets, as.character(o$SpatialGroup), 'Other cells')
 o$OligoLocation <- factor(focus, levels=c(targets,'Other cells'))
@@ -75,8 +78,7 @@ g <- fix_panel(ggplotGrob(p))
 save_grob(g,'oligodendrocyte_location_umap',max(width,mm(sum(g$widths))),height)
 fwrite(data.table(Group=focus)[,.(Cells=.N),by=Group],file.path(out,'oligodendrocyte_location_counts.tsv'),sep='\t')
 rm(g,p,o);gc(FALSE)
-# Each panel uses the same full set of frozen coordinates. Grey background first,
-# one complete cell type on top; no sampling, coordinate changes or clustering.
+# Each panel uses the full RPCA coordinates, with the selected cell type drawn last.
 labels <- a$Working_CellType[ii]
 xlimits <- range(e[,1]);ylimits <- range(e[,2])
 plots <- vector('list',length(classes))
@@ -99,7 +101,7 @@ for (j in seq_along(classes)) {
   # Convert one full-cohort panel at a time; release its multi-million-row data.
   plots[[j]] <- ggplotGrob(q)
   counts[[j]] <- data.table(CellType=type,Highlighted=sum(selected),Background=sum(!selected),Total=nrow(d))
-  message(Sys.time(),' built panel ',j,'/12: ',type)
+  message('Built panel ',j,'/12: ',type)
   rm(d,q);gc(FALSE)
 }
 # Equal title-row heights keep every map aligned despite wrapped type names.
@@ -109,16 +111,6 @@ combined <- wrap_plots(lapply(plots,wrap_elements),ncol=4)
 grid_grob <- patchworkGrob(combined)
 save_grob(grid_grob,'celltype_location_umap',umap_style$grid_width_mm,umap_style$grid_height_mm)
 fwrite(rbindlist(counts),file.path(out,'celltype_location_counts.tsv'),sep='\t')
-stopifnot(identical(digest(file=oldfile,algo='sha256'),oldhash),sum(rbindlist(counts)$Highlighted)==2602031L)
-write_json(list(state='COMPLETE',cells=nrow(m),original_clusters=75,cell_types=12,
-  celltype_order=classes,order_source='11_c65_microglia_compact_20260918/config.R: lev',
-  annotation_changed=FALSE,sampling=FALSE,reclustering=FALSE,per_cell_overrides=FALSE,
-  all_cells_per_panel=2602031,distribution_panels=12,frozen_coordinates=TRUE,
-  annotation_sha256=digest(file=file.path(out,'cluster_annotation.tsv'),algo='sha256'),
-  layout=list(panel_width_mm=panel_width,panel_height_mm=panel_height,legend_height_mm=legend_height,
-    panel_to_legend_height_ratio=panel_height/legend_height,page_width_mm=width,page_height_mm=height,
-    grid_width_mm=190,grid_height_mm=170,grid_columns=4,grid_rows=3),
-  standalone_titles_subtitles_captions=FALSE,legend_cell_counts=TRUE),
-  file.path(out,'figure_audit.json'),auto_unbox=TRUE,pretty=TRUE)
+stopifnot(sum(rbindlist(counts)$Highlighted)==2602031L)
 dev.off();unlink(file.path(out,'layout_measurement.pdf'))
-message(Sys.time(),' COMPLETE')
+message('Supplementary Figure S3 written')

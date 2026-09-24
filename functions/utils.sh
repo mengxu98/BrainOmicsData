@@ -391,9 +391,10 @@ verify_file_integrity() {
             fi
             ;;
         *.h5ad)
-            if command -v python3 >/dev/null 2>&1 &&
-               python3 -c "import h5py" >/dev/null 2>&1; then
-                if ! python3 - "$file_path" <<'PY'
+            local python_bin="${BRAINOMICS_PYTHON:-python3}"
+            if command -v "$python_bin" >/dev/null 2>&1 &&
+               "$python_bin" -c "import h5py" >/dev/null 2>&1; then
+                if ! "$python_bin" - "$file_path" <<'PY'
 import sys
 
 import h5py
@@ -596,7 +597,7 @@ cleanup_temp_files() {
 }
 
 check_command() {
-    if ! command -v $1 &> /dev/null; then
+    if ! command -v "$1" &> /dev/null; then
         log_message "$1 is not installed. Please install it first." --message-type error || true
         exit 1
     fi
@@ -612,7 +613,7 @@ run_r_script() {
         log_message "Script not found: $script_path" --message-type error || true
         exit 1
     fi
-    if Rscript "$script_path" "$@"; then
+    if "${BRAINOMICS_RSCRIPT:-Rscript}" "$script_path" "$@"; then
         log_message "$description completed" --message-type success
     else
         log_message "$description failed" --message-type error || true
@@ -632,14 +633,14 @@ run_python_script() {
         exit 1
     fi
     if [ -n "$run_from_script_dir" ]; then
-        if (cd "$(dirname "$script_path")" && python3 "$(basename "$script_path")"); then
+        if (cd "$(dirname "$script_path")" && "${BRAINOMICS_PYTHON:-python3}" "$(basename "$script_path")"); then
             log_message "$description completed" --message-type success
         else
             log_message "$description failed" --message-type error || true
             exit 1
         fi
     else
-        if python3 "$script_path"; then
+        if "${BRAINOMICS_PYTHON:-python3}" "$script_path"; then
             log_message "$description completed" --message-type success
         else
             log_message "$description failed" --message-type error || true

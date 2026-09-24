@@ -8,16 +8,14 @@
 #SBATCH -t 72:00:00
 
 # One stage of the shared 3,000-HVG reductions. STAGE is pca, raw_umap,
-# harmony, collect or rpca; RUN_ROOT is the run directory holding pipeline/.
+# harmony, collect or rpca. Source code is read from the current checkout.
 set -euo pipefail
 
 repo_dir="${BRAINOMICS_REPO_ROOT:?run through functions/pipeline_lib.sh or set BRAINOMICS_REPO_ROOT}"
 stage="${STAGE:?Supply STAGE (pca, raw_umap, harmony, collect or rpca)}"
-run_root="${RUN_ROOT:?Supply RUN_ROOT}"
-overwrite="${OVERWRITE:-F}"
-
-mkdir -p "$repo_dir/hpc/logs"
-
-export OVERWRITE="$overwrite"
+source "$repo_dir/functions/pipeline_lib.sh"
 export BRAINOMICS_EXECUTOR=local
-exec bash "$repo_dir/integration/parallel_integration_stage.sh" "$stage" "$run_root"
+cd "$repo_dir"
+brainomics_require_command "$BRAINOMICS_RSCRIPT"
+exec "$BRAINOMICS_RSCRIPT" "$repo_dir/functions/run_parallel_integration.R" \
+  "$BRAINOMICS_RUN_ROOT" "$stage"

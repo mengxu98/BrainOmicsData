@@ -1,7 +1,7 @@
 source("functions/prepare_env.R")
 
-data_dir <- "../../data/BrainOmicsData/raw/GSE207334"
-res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE207334/")
+data_dir <- brainomics_data_path("raw/GSE207334")
+res_dir <- check_dir(brainomics_data_path("processed/GSE207334/"))
 
 thisutils::log_message("Start loading data...")
 

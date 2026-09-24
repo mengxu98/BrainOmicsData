@@ -17,7 +17,7 @@ summary_file <- file.path(
   "source_label_harmonization_summary.tsv"
 )
 if (!file.exists(input_file)) {
-  stop("Missing source-label hierarchy audit: ", input_file)
+  stop("Missing source-label hierarchy table: ", input_file)
 }
 
 mapping <- as.data.table(read.delim(
@@ -690,9 +690,9 @@ write_tsv(as.data.frame(mapping), output_file)
 write_tsv(as.data.frame(summary), summary_file)
 
 metadata_file <- file.path(annotation_dir, "source_label_evaluation_metadata.rds")
-if (!file.exists(metadata_file)) stop("Run source_label_audit.R to refresh author labels first")
+if (!file.exists(metadata_file)) stop("Missing source-label evaluation metadata: ", metadata_file)
 if (file.exists(metadata_file)) {
-  thisutils::log_message("[source-label-harmonization] ", "Applying the reviewed hierarchy mapping to complete metadata")
+  thisutils::log_message("[source-label-harmonization] ", "Applying the documented hierarchy mapping to complete metadata")
   metadata <- readRDS(metadata_file)
   if (nrow(metadata) == 0L || anyDuplicated(metadata$Cells)) {
     stop("Complete metadata cells are empty or duplicated")
@@ -763,7 +763,7 @@ if (file.exists(metadata_file)) {
     )
   ]
   if (any(is.na(cell_mapping$Mapping_Status))) {
-    stop("Source-annotated cells failed the exact reviewed hierarchy join")
+    stop("Source-annotated cells failed the exact hierarchy join")
   }
   cell_mapping[, Source_Label_Evaluation_Eligible :=
     Mapping_Status == "mapped_for_common_comparison"]

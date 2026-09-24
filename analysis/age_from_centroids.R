@@ -1,9 +1,8 @@
 #!/usr/bin/env Rscript
-# Bounded replay of the recorded age and donor-distance calculations.
-# The centroid input is retained output of evaluate_current_age_and_donor_structure.R.
+# Calculate age predictions and donor-distance summaries from donor centroids.
 suppressPackageStartupMessages(library(data.table))
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 2L) stop("Usage: replay_age_from_centroids.R INPUT.rds NEW_OUTPUT_DIR")
+if (length(args) != 2L) stop("Usage: age_from_centroids.R INPUT.rds NEW_OUTPUT_DIR")
 if (dir.exists(args[2])) stop("Output directory must be new; existing results are never overwritten")
 dir.create(args[2], recursive = TRUE)
 out <- normalizePath(args[2])
@@ -65,4 +64,4 @@ for (dataset in unique(ad$Dataset)) {
         as.vector(dist(allcent[[method]][ii, , drop = FALSE])), method = "spearman")))
 }
 fwrite(rbindlist(struc), file.path(out, "donor_structure_by_dataset.tsv"), sep = "\t")
-message("Age predictions, study summaries and donor-distance correlations replayed from retained centroids")
+message("Age predictions, study summaries and donor-distance correlations written")

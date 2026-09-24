@@ -7,11 +7,10 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
+source "$repo_dir/environment/activate.sh"
 
 if [ -n "${BRAINOMICS_PYTHON:-}" ]; then
   python="$BRAINOMICS_PYTHON"
-elif [ -x "$repo_dir/.venv/bin/python" ]; then
-  python="$repo_dir/.venv/bin/python"
 else
   python=python3
 fi
@@ -23,12 +22,13 @@ import ast
 from pathlib import Path
 
 for root in (Path("processing"), Path("integration"), Path("tests"),
-             Path("functions"), Path("environment"), Path("analysis")):
+             Path("functions"), Path("environment"), Path("analysis"),
+             Path("provenance")):
     for path in sorted(root.rglob("*.py")):
         ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 PY
 
-Rscript - <<'RS'
+"$BRAINOMICS_RSCRIPT" --vanilla - <<'RS'
 files <- sort(unique(c(
   list.files("functions", pattern = "[.]R$", full.names = TRUE),
   list.files("processing", pattern = "[.]R$", full.names = TRUE),
@@ -59,9 +59,12 @@ for dataset in \
   EGAS00001006537 \
   GSE168408 \
   Wang_2025 \
-  GSE294786 \
-  Velmeshev_2023; do
-  [ -f "download/${dataset}.sh" ] || continue
+	GSE294786 \
+	Velmeshev_2023; do
+	[ -f "download/${dataset}.sh" ] || {
+		echo "Missing download script for $dataset" >&2
+		exit 1
+	}
   download_records="$(bash "download/${dataset}.sh" --list)"
   if [ "$(printf '%s\n' "$download_records" | sed -n '1p')" != \
        "source_url|file_name|expected_bytes|sha256" ]; then
@@ -112,7 +115,7 @@ fi
 
 mkdir -p "$test_dir/results/scvi_input"
 ln -s /usr/bin/true "$test_dir/python3"
-PATH="$test_dir:$PATH" BRAINOMICS_RESULTS_DIR="$test_dir/results" \
+BRAINOMICS_SCVI_PYTHON="$test_dir/python3" BRAINOMICS_RESULTS_DIR="$test_dir/results" \
   bash 07_scvi.sh F >/dev/null
 
 # 5. Released package contract (structure, hashes, table schemas, wording).
@@ -125,12 +128,13 @@ fi
 
 # 6. Optional synthetic fixtures (pipeline logic, not part of the default run).
 if [ "${BRAINOMICS_FULL_TESTS:-0}" = "1" ]; then
-  Rscript --vanilla tests/test_celltype_metadata.R
-  Rscript --vanilla tests/test_annotation_inputs.R
-  Rscript --vanilla tests/test_reference_knn_projection.R
-  Rscript --vanilla tests/test_query_normalization.R
-  Rscript --vanilla tests/test_age_interval_decisions.R
-  Rscript --vanilla tests/test_percent_mito_matrix.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_celltype_metadata.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_integration_algorithms.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_lisi_neighbors.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_reference_knn_projection.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_query_normalization.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_age_interval_decisions.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_percent_mito_matrix.R
   if "$python" -c 'import h5py, scipy' >/dev/null 2>&1; then
     "$python" tests/test_percent_mito_h5ad.py
   else
@@ -156,7 +160,7 @@ PY
   else
     echo "GSE294786 converter runtime skipped: h5py/pandas/scipy unavailable"
   fi
-  Rscript tests/test_clean_room_fixture.R
+  "$BRAINOMICS_RSCRIPT" --vanilla tests/test_synthetic_pipeline.R
   echo "synthetic fixtures passed"
 fi
 

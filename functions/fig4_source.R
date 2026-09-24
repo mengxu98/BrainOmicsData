@@ -1,17 +1,22 @@
 #!/usr/bin/env Rscript
-# Exploratory held-out review. Does not overwrite the manuscript figures.
+# Figure 4 source mapping and donor concordance panels.
 suppressPackageStartupMessages({library(data.table);library(ggplot2);library(ggrastr);library(ComplexHeatmap)})
 source("functions/config.R")
 grDevices::pdfFonts(Arial=grDevices::pdfFonts('ArialMT')[[1]])
 options(device=function(...) grDevices::cairo_pdf(file=file.path(tempdir(),'egad-layout.pdf'),family='Arial',...))
 results_root<-file.path(doc,'tables/egad_mapping')
-stopifnot(file.exists(file.path(results_root,'COMPLETE.json')),file.exists(file.path(results_root,'REPORT_COMPLETE.json')))
-current_transfer<-TRUE;tsne<-FALSE;preview<-FALSE;reduction<-'umap';out<-'figures';dir.create(out,recursive=TRUE,showWarnings=FALSE)
+required_inputs <- file.path(results_root, c(
+  'query_predictions.tsv.gz',
+  'full_source_prediction_counts.tsv',
+  'comparable_donor_source_agreement.tsv'
+))
+stopifnot(all(file.exists(required_inputs)))
+out<-'figures';dir.create(out,recursive=TRUE,showWarnings=FALSE)
 d<-fread(file.path(results_root,'query_predictions.tsv.gz'))
 setnames(d,c('CellID','Source_CellClass','Working_CellType'),c('Cells','Source_Label','Predicted_CellType'))
 stopifnot(nrow(d)==1661798L,!anyDuplicated(d$Cells),all(d$Mapping_Status=='mapped'),all(is.finite(d$UMAP_1)),all(is.finite(d$UMAP_2)))
 stopifnot(all(d$Predicted_CellType %in% names(brainomics_celltype_colors)),uniqueN(d$Predicted_CellType)==12L)
-# Source names are display-only harmonizations; fresh coordinates and votes unchanged.
+# Source names are display-only harmonizations; coordinates and votes are unchanged.
 rename<-c('Neuron'='Neurons','Neuroblast'='Neuroblasts','Neuronal IPC'='Neuronal intermediate progenitor cells','Glioblast'='Glioblasts','Oligo'='Oligodendrocyte lineage','Immune'='Immune cells','Vascular'='Vascular cells','Fibroblast'='Perivascular fibroblasts','Erythrocyte'='Erythrocytes')
 d[Source_Label%in%names(rename),Source_Label:=unname(rename[Source_Label])]
 # Reuse Fig. 2G's CellDimPlot rendering and final-size arrow-axis theme.
@@ -41,8 +46,8 @@ plot_umap <- function(field, colors, title) {
     object, reduction = "display", group.by = field,
     palcolor = colors, label = FALSE, seed = 11, show_stat = FALSE,
     raster = TRUE, raster.dpi = c(1600, 1600), pt.size = 2,
-    xlab = if (tsne) "t-SNE_1" else "UMAP_1",
-    ylab = if (tsne) "t-SNE_2" else "UMAP_2",
+    xlab = "UMAP_1",
+    ylab = "UMAP_2",
     legend.title = "Cell type", theme_use = "theme_blank_axis",
     theme_args = list(text = element_text(family = "Arial")), combine = FALSE
   )[[1]]
@@ -66,8 +71,7 @@ plot_umap <- function(field, colors, title) {
 
   p + scale_colour_manual(name = "Cell type", values = colors, labels = identity) +
     theme_blank_axis(lab_size = 5.5, axis_lwd = 0.6,
-                     xlab = if (tsne) "t-SNE_1" else "UMAP_1",
-                     ylab = if (tsne) "t-SNE_2" else "UMAP_2") +
+                     xlab = "UMAP_1", ylab = "UMAP_2") +
     p$theme + coord_fixed(ratio = 1, clip = "off") +
     labs(title = title, subtitle = NULL) +
     guides(colour = guide_legend(ncol = 1, byrow = TRUE, override.aes = list(size = 1.3))) +
@@ -81,24 +85,6 @@ ggsave(file.path(out, "fig4a.pdf"),
 ggsave(file.path(out, "fig4b.pdf"),
        plot_umap("Predicted_CellType", predicted_colors, sprintf("Transferred labels (n = %d)", length(predicted_colors))),
        device = cairo_pdf, width = umap_width, height = umap_height, units = "mm")
-
-if (preview) {
-  preview_name <- if (current_transfer) {
-    if (tsne) "egad_transfer_author_tsne" else "egad_transfer_umap"
-  } else {
-    if (tsne) "egad_author_tsne_preview" else "egad_umap_spca_preview"
-  }
-  preview_top <- umap_height + 3
-  assemble_pdf_figure(preview_name, c(4 + 2 * umap_width + 8, preview_top + 3), list(
-    pdf_panel("A", 4, preview_top, umap_width, height = umap_height,
-              source = normalizePath(file.path(out, "fig4a.pdf")),
-              label_x = 1, label_y = preview_top + 2),
-    pdf_panel("B", 8 + umap_width, preview_top, umap_width, height = umap_height,
-              source = normalizePath(file.path(out, "fig4b.pdf")),
-              label_x = 5 + umap_width, label_y = preview_top + 2)
-  ), normalizePath("."))
-  quit(save = "no")
-}
 
 c <- fread(file.path(results_root, "full_source_prediction_counts.tsv"))
 setnames(c, c("Source_CellClass", "Working_CellType", "Row_Percent"),
@@ -294,7 +280,7 @@ panels <- list(
 )
 
 assemble_pdf_figure(
-  if (current_transfer) "fig4" else "fig4_reference_review",
+  "fig4",
   c(page_width, page_height),
   panels,
   normalizePath(".")

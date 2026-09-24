@@ -338,11 +338,11 @@ validate_celltype_metadata <- function(metadata, cells) {
   invisible(annotation)
 }
 
-# Check the result inventory; annotation freshness is reviewed before analysis/redraw.
-validate_annotation_statistics <- function(directory) {
-  path <- file.path(directory, "annotation_input.tsv")
+# Check that every file listed for an analysis result is present.
+validate_result_manifest <- function(directory) {
+  path <- file.path(directory, "result_manifest.tsv")
   if (!file.exists(path)) {
-    stop("Missing annotation result inventory: ", path)
+    stop("Missing result manifest: ", path)
   }
   input <- read_tsv(path)
   if (
@@ -352,7 +352,7 @@ validate_annotation_statistics <- function(directory) {
       any(!nzchar(input$File)) ||
       anyDuplicated(input$File)
   ) {
-    stop("Invalid annotation result inventory: ", path)
+    stop("Invalid result manifest: ", path)
   }
   files <- file.path(directory, input$File)
   if (any(!file.exists(files))) {
@@ -362,7 +362,7 @@ validate_annotation_statistics <- function(directory) {
 }
 
 # Called by an analysis only after its output files have been written successfully.
-write_annotation_input <- function(directory, files) {
+write_result_manifest <- function(directory, files) {
   stopifnot(
     length(files) > 0L,
     !anyDuplicated(files),
@@ -370,9 +370,9 @@ write_annotation_input <- function(directory, files) {
   )
   write_tsv(
     data.frame(File = files),
-    file.path(directory, "annotation_input.tsv")
+    file.path(directory, "result_manifest.tsv")
   )
-  validate_annotation_statistics(directory)
+  validate_result_manifest(directory)
 }
 
 brainomics_celltype_colors <- c(

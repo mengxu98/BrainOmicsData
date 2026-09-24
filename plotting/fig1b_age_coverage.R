@@ -6,18 +6,16 @@ suppressPackageStartupMessages({
   library(patchwork)
 })
 source("functions/dataset_metadata.R")
-analysis_dir <- Sys.getenv(
-  "BRAINOMICS_ANALYSIS_DIR",
-  unset = file.path(
-    "outputs", "reprocessing_plan_20260913", "execution_20260914_34387",
-    "analysis_from_scratch_20260917"
-  )
-)
-summary_dir <- Sys.getenv(
-  "BRAINOMICS_REFERENCE_SUMMARY",
-  unset = file.path("results", "analysis_run", "07_downstream",
-                    "revision_20260918", "reference_summary")
-)
+summary_dir <- Sys.getenv("BRAINOMICS_REFERENCE_SUMMARY", unset = "")
+if (!nzchar(summary_dir)) {
+  analysis_root <- Sys.getenv("BRAINOMICS_ANALYSIS_DIR", unset = file.path("results", "analysis_run"))
+  candidates <- list.files(analysis_root, recursive = TRUE, full.names = TRUE)
+  matches <- dirname(candidates[basename(candidates) == "reference_summary.tsv"])
+  if (length(matches) != 1L) {
+    stop("Set BRAINOMICS_REFERENCE_SUMMARY; found ", length(matches), " candidate directories")
+  }
+  summary_dir <- matches[[1L]]
+}
 ages <- fread(file.path(summary_dir, "reported_age_summary.tsv"))
 specimens <- fread(file.path(summary_dir, "reported_age_sex_specimen_summary.tsv"))
 stages <- fread(file.path(summary_dir, "age_interval_summary.tsv"))
@@ -145,11 +143,11 @@ cells <- cells + geom_text(data = bands,
   aes(mid, max(ages$Cells) * 1.18, label = fmt(Cells), angle = count_angle,
     hjust = ifelse(count_angle == 90, 1, 0.5), vjust = ifelse(count_angle == 90, 0.5, 1)),
   inherit.aes = FALSE, family = "Arial", size = 2.1)
-preview <- (top / cells / points / bottom) +
+figure <- (top / cells / points / bottom) +
   plot_layout(heights = c(0.25, 2.5, 1.8, 0.9), guides = "collect") &
   theme(legend.position = "bottom", legend.margin = margin(0, 0, 0, 0),
     legend.box.spacing = grid::unit(0, "mm"))
 output <- "figures/fig1b.pdf"
 dir.create(dirname(output), recursive = TRUE, showWarnings = FALSE)
-ggsave(output, preview, width = figure_width_mm, height = figure_height_mm, units = "mm", device = cairo_pdf, family = "Arial")
+ggsave(output, figure, width = figure_width_mm, height = figure_height_mm, units = "mm", device = cairo_pdf, family = "Arial")
 message("Figure 1B: ", output)

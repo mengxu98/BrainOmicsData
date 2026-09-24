@@ -16,7 +16,7 @@ annotation_dir <- file.path(integration_dir, "annotation")
 reduction_dir <- file.path(annotation_dir, "reductions")
 dir.create(reduction_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Existing fitted spaces can be validated without loading the expression object.
+# Reuse complete fitted spaces when they are already available.
 files <- file.path(reduction_dir, paste0(tolower(method_levels), "_latent.rds"))
 if (all(file.exists(files))) {
   cells <- as.character(readRDS(metadata_file)$Cells)
@@ -32,8 +32,8 @@ if (all(file.exists(files))) {
       File = files[i], File_SHA256 = processed_file_sha256(files[i])
     )
   })
-  write_tsv(do.call(rbind, rows), file.path(annotation_dir, "annotation_reduction_audit.tsv"))
-  message("Validated four existing fitted spaces without refitting or loading expression")
+  write_tsv(do.call(rbind, rows), file.path(annotation_dir, "reduction_manifest.tsv"))
+  message("Four annotation representations are available")
   quit(save = "no", status = 0L)
 }
 
@@ -57,7 +57,7 @@ method_identity <- method_identity[match(
 ), , drop = FALSE]
 
 cell_hash <- sha256_text_vector(colnames(object))
-audit_rows <- vector("list", nrow(method_identity))
+manifest_rows <- vector("list", nrow(method_identity))
 for (index in seq_len(nrow(method_identity))) {
   method <- method_identity$Display_Name[[index]]
   reduction <- method_identity$Reduction[[index]]
@@ -77,7 +77,7 @@ for (index in seq_len(nrow(method_identity))) {
     unlink(temporary_file)
     stop("Could not publish ", output_file)
   }
-  audit_rows[[index]] <- data.frame(
+  manifest_rows[[index]] <- data.frame(
     Method = method,
     Reduction = reduction,
     Cells = nrow(embedding),
@@ -92,19 +92,19 @@ for (index in seq_len(nrow(method_identity))) {
   gc()
 }
 
-features <- rownames(object)
-if (length(features) == 0L || anyDuplicated(features)) {
+feature_names <- rownames(object)
+if (length(feature_names) == 0L || anyDuplicated(feature_names)) {
   stop("RNA feature identifiers are empty or duplicated")
 }
-feature_audit <- data.frame(
-  Feature_Order = seq_along(features),
-  Feature = features,
+feature_table <- data.frame(
+  Feature_Order = seq_along(feature_names),
+  Feature = feature_names,
   stringsAsFactors = FALSE
 )
-write_tsv(feature_audit, file.path(annotation_dir, "rna_features.tsv.gz"))
+write_tsv(feature_table, file.path(annotation_dir, "rna_features.tsv.gz"))
 write_tsv(
-  do.call(rbind, audit_rows),
-  file.path(annotation_dir, "annotation_reduction_audit.tsv")
+  do.call(rbind, manifest_rows),
+  file.path(annotation_dir, "reduction_manifest.tsv")
 )
 
 thisutils::log_message("[annotation-input-export] ", paste(
@@ -112,7 +112,7 @@ thisutils::log_message("[annotation-input-export] ", paste(
   nrow(method_identity),
   "latent representations for",
   format(ncol(object), big.mark = ","),
-  "cells and audited",
-  format(length(features), big.mark = ","),
+  "cells and",
+  format(length(feature_names), big.mark = ","),
   "RNA features"
 ))

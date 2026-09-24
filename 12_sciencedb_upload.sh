@@ -9,6 +9,7 @@ set -euo pipefail
 BRAINOMICS_STAGE=12_sciencedb_upload
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/functions/pipeline_lib.sh"
 source "$SCRIPT_DIR/functions/log_message.sh"
 
 usage() {
@@ -18,7 +19,7 @@ Usage:
 
 Options:
   --local-dir DIR      Local package directory to upload.
-                       Default: ../../data/BrainOmicsData/ScienceDB
+                       Default: $BRAINOMICS_RUN_ROOT/package (or results/run_root/package)
   --remote-dir DIR     Remote FTP directory.
                        Default: human_brain_age_interval_sc_snRNAseq_dataset
   --host HOST          FTP host, for example ftp-upload.scidb.cn
@@ -40,7 +41,7 @@ written to files by this script.
 EOF
 }
 
-LOCAL_DIR="$SCRIPT_DIR/../../data/BrainOmicsData/ScienceDB"
+LOCAL_DIR="${BRAINOMICS_PACKAGE_DIR:-${BRAINOMICS_RUN_ROOT:-$SCRIPT_DIR/results/run_root}/package}"
 REMOTE_DIR="human_brain_age_interval_sc_snRNAseq_dataset"
 FTP_HOST="${FTP_HOST:-}"
 FTP_PORT="${FTP_PORT:-}"
@@ -110,6 +111,12 @@ if [[ ! -d "$LOCAL_DIR" ]]; then
   log_message "Local directory does not exist: {.path $LOCAL_DIR}" --message-type error
   exit 1
 fi
+for required in md5sum.txt provenance/file_manifest.tsv; do
+  if [[ ! -f "$LOCAL_DIR/$required" ]]; then
+    log_message "Local package is missing {.file $required}." --message-type error
+    exit 1
+  fi
+done
 
 if ! command -v curl >/dev/null 2>&1; then
   log_message "{.pkg curl} is required." --message-type error

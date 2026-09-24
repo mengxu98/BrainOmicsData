@@ -3,7 +3,7 @@
 # Download the complete public author-processed matrices and per-nucleus
 # metadata for Cameron et al.  The EGA FASTQ files are controlled, but the five
 # brain-region raw count matrices and author cell-type annotations are public on
-# Figshare and are sufficient for the formal processed-data reconstruction.
+# Figshare and are sufficient for the processed-data reconstruction.
 #
 # Paper: https://doi.org/10.1016/j.biopsych.2022.06.033
 # Figshare: https://figshare.com/articles/dataset/11629311
@@ -14,7 +14,7 @@ set -e
 source "$(dirname "$0")/../functions/utils.sh"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_ROOT="$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData"
+DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData}"
 DATA_DIR="$DATA_ROOT/raw/EGAS00001006537"
 
 DOWNLOAD_LIST="

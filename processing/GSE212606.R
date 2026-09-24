@@ -1,7 +1,7 @@
 source("functions/prepare_env.R")
 
-data_dir <- "../../data/BrainOmicsData/raw/GSE212606"
-res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE212606/")
+data_dir <- brainomics_data_path("raw/GSE212606")
+res_dir <- check_dir(brainomics_data_path("processed/GSE212606/"))
 
 thisutils::log_message("Start loading data...")
 counts <- Matrix::readMM(

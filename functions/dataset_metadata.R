@@ -854,7 +854,7 @@ apply_curated_age_interval_decisions <- function(meta) {
   )
   meta$Age_Interval_Curation_Evidence[gse67835_prenatal] <- paste(
     "Darmanis et al. 2015 reports 16-18 gestational weeks; conversion",
-    "to 14-16 postconception weeks is retained, and the user-approved",
+    "to 14-16 postconception weeks is retained, and the documented",
     "descriptive interval decision assigns the cohort to S4"
   )
   meta$Age_Interval_Curation_Confidence[gse67835_prenatal] <-

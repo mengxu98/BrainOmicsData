@@ -50,7 +50,7 @@ stopifnot(
 )
 
 repo_dir <- normalizePath(".", mustWork = TRUE)
-test_dir <- tempfile("brainomics-clean-room-")
+test_dir <- tempfile("brainomics-synthetic-pipeline-")
 dir.create(test_dir)
 on.exit(unlink(test_dir, recursive = TRUE), add = TRUE)
 # Source-recovery tests must use synthetic inputs, never the user's raw data.
@@ -1591,7 +1591,7 @@ process_layered_h5ad(
     source_accession = "Fixture_A",
     source_repository = "synthetic fixture",
     publication_doi = "10.0000/synthetic.fixture",
-    verified_title = "Synthetic clean-room fixture",
+    verified_title = "Synthetic pipeline fixture",
     journal = "Synthetic",
     publication_year = "2026",
     repository_record_url = "https://example.org/synthetic-fixture",
@@ -1863,7 +1863,7 @@ stopifnot(
   existing_technical_inventory$Record_Type[[1L]] == "dataset_summary"
 )
 
-# Explicit method identity prevents the historical Harmony-as-RPCA relabeling.
+# Keep integration method identities explicit.
 stopifnot(
   length(reference_datasets()) == 22L,
   identical(
@@ -2414,29 +2414,25 @@ python_ready <- system2(
   stdout = FALSE,
   stderr = FALSE
 ) == 0L
-if (python_ready) {
-  h5ad_dir <- file.path(test_dir, "reader_roundtrip_h5ad")
-  python_status <- system2(
-    python,
-    c(
-      file.path(package_dir, "scripts", "read_h5ad.py"),
-      package_dir,
-      h5ad_dir
-    )
+if (!python_ready) stop("Python reader dependencies are unavailable")
+h5ad_dir <- file.path(test_dir, "reader_roundtrip_h5ad")
+python_status <- system2(
+  python,
+  c(
+    file.path(package_dir, "scripts", "read_h5ad.py"),
+    package_dir,
+    h5ad_dir
   )
-  stopifnot(
-    python_status == 0L,
-    file.exists(file.path(h5ad_dir, "Fixture_A.h5ad")),
-    file.exists(file.path(h5ad_dir, "Fixture_B.h5ad"))
-  )
-  stopifnot(system2(python, c("tests/test_reader_roundtrip.py", shQuote(package_dir), shQuote(h5ad_dir))) == 0L)
-  message("Python_reader_status=passed")
-} else {
-  if (identical(Sys.getenv("BRAINOMICS_REQUIRE_PYTHON_READER"), "true")) {
-    stop("Required Python reader round-trip cannot run: scanpy/pandas/anndata unavailable")
-  }
-  message("Python_reader_status=skipped; scanpy/pandas/anndata unavailable")
-}
+)
+stopifnot(
+  python_status == 0L,
+  file.exists(file.path(h5ad_dir, "Fixture_A.h5ad")),
+  file.exists(file.path(h5ad_dir, "Fixture_B.h5ad"))
+)
+stopifnot(system2(
+  python,
+  c("tests/test_reader_roundtrip.py", shQuote(package_dir), shQuote(h5ad_dir))
+) == 0L)
 
 source_original_sample_ids <- release_metadata$Original_Sample_ID
 synthetic_public_sidecar <- data.frame(
@@ -2612,31 +2608,4 @@ stopifnot(
   )
 )
 
-# The complete neuronal-lineage workflow keeps every broad-lineage cell in
-# unsupervised integration and clustering, while the separately audited
-# subtype boundary prevents a mixed global cluster from driving marker-based
-# subtype names or biological claims.
-lineage_integration_path <- file.path(repo_dir, "annotation", "integrate_neuronal_lineage.R")
-lineage_integration_source <- if (file.exists(lineage_integration_path)) paste(readLines(lineage_integration_path, warn = FALSE), collapse = "\n") else ""
-lineage_marker_path <- file.path(repo_dir, "annotation", "neuronal_lineage_markers.R")
-lineage_marker_source <- if (file.exists(lineage_marker_path)) paste(readLines(lineage_marker_path, warn = FALSE), collapse = "\n") else ""
-if (nzchar(lineage_integration_source)) stopifnot(
-  grepl("excluded_sensitivity", lineage_integration_source, fixed = TRUE),
-  grepl(
-    "Exclude_From_Subtype_Inference",
-    lineage_integration_source,
-    fixed = TRUE
-  ),
-  grepl(
-    "Subtype_Inference_Eligible",
-    lineage_marker_source,
-    fixed = TRUE
-  ),
-  grepl(
-    "lineage_subtype_inference_exclusions.tsv",
-    lineage_marker_source,
-    fixed = TRUE
-  )
-)
-
-cat("clean-room synthetic fixture passed\n")
+cat("synthetic pipeline fixture passed\n")

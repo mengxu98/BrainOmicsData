@@ -210,23 +210,13 @@ output_files <- c(
   file.path(annotation_dir, "source_lisi_effects.tsv"),
   file.path(annotation_dir, "source_lisi_by_label_and_donor.tsv.gz"),
   file.path(annotation_dir, "source_lisi_by_label.tsv"),
-  file.path(annotation_dir, "source_lisi_numeric_audit.tsv"),
-  file.path(annotation_dir, "source_lisi_contract.tsv")
+  file.path(annotation_dir, "source_lisi_numeric_parameters.tsv"),
+  file.path(annotation_dir, "source_lisi_parameters.tsv")
 )
 manifest_file <- file.path(annotation_dir, "source_lisi_manifest.tsv")
-incomplete_file <- file.path(annotation_dir, "source_lisi_INCOMPLETE")
-success_file <- file.path(annotation_dir, "source_lisi_SUCCESS")
-if (any(file.exists(c(output_files, manifest_file, success_file)))) {
-  stop("Source-label cLISI aggregation refuses to overwrite formal outputs")
+if (any(file.exists(c(output_files, manifest_file)))) {
+  stop("Source-label cLISI outputs already exist")
 }
-writeLines(
-  c(
-    paste0("PID=", Sys.getpid()),
-    paste0("Started_UTC=", format(Sys.time(), tz = "UTC", usetz = TRUE))
-  ),
-  incomplete_file,
-  useBytes = TRUE
-)
 
 write_tsv(
   as.data.frame(donor_scores),
@@ -266,7 +256,7 @@ write_tsv(
     Inference_Unit = "source dataset",
     Cell_Level_Use = "descriptive only; no cell-level hypothesis test",
     Cohort = paste(
-      "all cells with reviewed original-study common labels;",
+      "all cells with harmonized original-study common labels;",
       "source unknown, mixed, low-quality and unavailable labels excluded;",
       "no random selection"
     ),
@@ -276,7 +266,7 @@ write_tsv(
 )
 
 if (any(!file.exists(output_files)) || any(file.info(output_files)$size <= 0)) {
-  stop("Source-label cLISI aggregation did not produce every formal output")
+  stop("Source-label cLISI aggregation did not produce every output")
 }
 manifest <- data.frame(
   File = basename(output_files),
@@ -284,16 +274,6 @@ manifest <- data.frame(
   stringsAsFactors = FALSE
 )
 write_tsv(manifest, manifest_file)
-writeLines(
-  c(
-    "Status=complete",
-    paste0("Completed_UTC=", format(Sys.time(), tz = "UTC", usetz = TRUE))
-  ),
-  success_file,
-  useBytes = TRUE
-)
-unlink(incomplete_file)
-
 thisutils::log_message("[source-label-lisi-aggregate] ", paste(
   "Completed source-label cLISI aggregation for",
   format(nrow(evaluation_labels), big.mark = ","),

@@ -23,32 +23,6 @@ from pathlib import Path
 _cache: dict[str, object] = {}
 
 
-def _glob_candidates():
-    """Fallback that does not need R: scan common R library locations for thisutils."""
-    import glob  # noqa: PLC0415
-
-    roots = [
-        os.environ.get("R_LIBS_USER", ""),
-        os.path.join(os.environ.get("R_HOME", ""), "library") if os.environ.get("R_HOME") else "",
-        os.path.expanduser("~/miniconda3/envs/*/lib/R/library"),
-        os.path.expanduser("~/anaconda3/envs/*/lib/R/library"),
-        os.path.expanduser("~/.omicos/env/.venv/lib/R/library"),
-        os.path.expanduser("~/.venv/lib/R/library"),
-        "/opt/homebrew/lib/R/*/site-library",
-        "/usr/local/lib/R/*/site-library",
-        "/Library/Frameworks/R.framework/Versions/*/Resources/library",
-        os.path.expanduser("~/Library/R/*/library"),
-    ]
-    bases = []
-    for root in roots:
-        if root:
-            bases.extend(glob.glob(root))
-    # Current layout first (scripts/), then the earlier python/ layout.
-    for sub in ("scripts", "python"):
-        for base in bases:
-            yield Path(base) / "thisutils" / sub
-
-
 def _thisutils_python_dir() -> Path | None:
     explicit = os.environ.get("LOG_MESSAGE_PY")
     if explicit and Path(explicit).is_file():
@@ -57,16 +31,13 @@ def _thisutils_python_dir() -> Path | None:
     expr = ('d <- system.file("scripts", package = "thisutils"); '
             'if (!nzchar(d)) d <- system.file("python", package = "thisutils"); cat(d)')
     try:
-        out = subprocess.run(["Rscript", "--vanilla", "-e", expr],
+        out = subprocess.run([os.environ.get("BRAINOMICS_RSCRIPT", "Rscript"), "--vanilla", "-e", expr],
                              capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         return None
     candidate = out.stdout.strip()
     if out.returncode == 0 and candidate and Path(candidate, "log_message.py").is_file():
         return Path(candidate)
-    for fallback in _glob_candidates():
-        if (fallback / "log_message.py").is_file():
-            return fallback
     return None
 
 

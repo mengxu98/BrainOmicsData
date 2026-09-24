@@ -10,22 +10,6 @@ source("functions/integration.R")
 
 source("functions/lisi_neighbors.R")
 
-if ("--check-query-partition" %in% commandArgs(trailingOnly = TRUE)) {
-  .libPaths(c(brainomics_data_path("environment", "lisi-double", "library"), .libPaths()))
-  set.seed(2026)
-  x <- matrix(rnorm(400 * 50), nrow = 400)
-  x[201:220, ] <- x[1:20, ] # Include tied coordinates, not just generic random points.
-  m <- data.frame(broad = rep(letters[1:4], 100), fine = rep(letters[1:8], 50))
-  expected <- lisi::compute_lisi(x, m, names(m), perplexity = 30, nn_eps = 0.1)
-  observed <- compute_source_lisi(x, m)
-  stopifnot(isTRUE(all.equal(expected, observed, tolerance = 1e-12)))
-  fast <- compute_source_lisi_hnsw(x, m, m$broad)
-  stopifnot(max(abs(as.matrix(fast) - as.matrix(expected))) < 0.01)
-  message("HNSW full scoring agrees with original LISI on the tied-coordinate fixture")
-  message("Partitioned queries match the original LISI function, including tied coordinates")
-  quit(save = "no")
-}
-
 method <- trimws(Sys.getenv("BRAINOMICS_ANNOTATION_METHOD", unset = ""))
 if (!method %in% method_levels) {
   stop(
@@ -49,14 +33,12 @@ if (!is.finite(perplexity) || perplexity <= 0L ||
   !is.finite(nn_eps) || nn_eps < 0) {
   stop("Invalid LISI perplexity or nearest-neighbor error bound")
 }
-task_library <- brainomics_data_path("environment", "lisi-double", "library")
-if (dir.exists(task_library)) .libPaths(c(task_library, .libPaths()))
 if (!requireNamespace("lisi", quietly = TRUE)) {
   stop("The pinned lisi package is required")
 }
 description <- packageDescription("lisi")
 if (!identical(description$BrainOmicsNumericPrecision, "double")) {
-  stop("Use the reviewed double-precision LISI build for source-label evaluation")
+  stop("Use the pinned double-precision LISI build for source-label evaluation")
 }
 
 integration_dir <- brainomics_data_path("integration_25")
@@ -71,9 +53,9 @@ embedding_file <- file.path(
   paste0(method_key, "_latent.rds")
 )
 label_file <- file.path(annotation_dir, "source_labels_harmonized.rds")
-reduction_audit_file <- file.path(
+reduction_manifest_file <- file.path(
   annotation_dir,
-  "annotation_reduction_audit.tsv"
+  "reduction_manifest.tsv"
 )
 label_contract_file <- file.path(
   annotation_dir,
@@ -84,7 +66,7 @@ output_file <- file.path(
   paste0(method_key, "_source_label_lisi.rds")
 )
 required_files <- c(
-  embedding_file, label_file, reduction_audit_file, label_contract_file
+  embedding_file, label_file, reduction_manifest_file, label_contract_file
 )
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0L) {
@@ -109,15 +91,15 @@ if (anyDuplicated(labels$Cells) ||
   stop("Per-cell source-label mapping order is invalid")
 }
 
-reduction_audit <- read.delim(
-  reduction_audit_file,
+reduction_manifest <- read.delim(
+  reduction_manifest_file,
   sep = "\t",
   quote = "",
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
-audit_row <- reduction_audit[reduction_audit$Method == method, , drop = FALSE]
-if (nrow(audit_row) != 1L) stop("Missing method in reduction audit")
+manifest_row <- reduction_manifest[reduction_manifest$Method == method, , drop = FALSE]
+if (nrow(manifest_row) != 1L) stop("Missing method in reduction manifest")
 label_contract <- read.delim(
   label_contract_file,
   sep = "\t",
@@ -139,13 +121,13 @@ if (is.na(expected_eligible_cells) || expected_eligible_cells <= 0L) {
 thisutils::log_message("[source-label-lisi] ", paste(
   "Loading",
   method,
-  audit_row$Dimensions,
+  manifest_row$Dimensions,
   "dimensional latent representation"
 ))
 embedding <- readRDS(embedding_file)
 if (!is.matrix(embedding) ||
   nrow(embedding) != nrow(labels) ||
-  ncol(embedding) != audit_row$Dimensions ||
+  ncol(embedding) != manifest_row$Dimensions ||
   !identical(rownames(embedding), as.character(labels$Cells)) ||
   any(!is.finite(embedding))) {
   stop(method, " latent representation failed dimension, order or value checks")

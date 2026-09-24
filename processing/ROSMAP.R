@@ -1,7 +1,7 @@
 source("functions/prepare_env.R")
 
-data_dir <- "../../data/BrainOmicsData/raw/ROSMAP"
-res_dir <- check_dir("../../data/BrainOmicsData/processed/ROSMAP/")
+data_dir <- brainomics_data_path("raw/ROSMAP")
+res_dir <- check_dir(brainomics_data_path("processed/ROSMAP/"))
 
 if (!file.exists(file.path(data_dir, "individual_metadata_deidentified.tsv"))) {
   download.file(

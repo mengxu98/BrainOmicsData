@@ -1,12 +1,12 @@
 source("functions/prepare_env.R")
 source("functions/dataset_metadata.R")
 
-data_dir <- "../../data/BrainOmicsData/raw/GSE217511/GSE217511"
-res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE217511/")
+data_dir <- brainomics_data_path("raw/GSE217511/GSE217511")
+res_dir <- check_dir(brainomics_data_path("processed/GSE217511/"))
 
 thisutils::log_message("Start loading data...")
 
-metadata_dir <- "../../data/BrainOmicsData/raw/GSE217511"
+metadata_dir <- brainomics_data_path("raw/GSE217511")
 metadata_files <- list.files(
   metadata_dir,
   pattern = ".*_Seuratmetadata\\.csv$",

@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # Extract the prespecified 11-gene panel from one processed source dataset.
-# Run from the repository root, once per Dataset, on the storage host.
+# Run from the repository root, once per dataset with its processed object available.
 suppressPackageStartupMessages({library(data.table);library(Matrix);library(SeuratObject)})
 setDTthreads(2L)
 source('functions/data_paths.R')
@@ -15,17 +15,26 @@ analysis_dir <- Sys.getenv('BRAINOMICS_ANALYSIS_DIR',file.path(repo,'results/ana
 processed_dir <- Sys.getenv('BRAINOMICS_PROCESSED_DIR',brainomics_data_path('processed'))
 out <- Sys.getenv('BRAINOMICS_FIG5_PANEL_DIR',file.path(repo,'results/fig5_full_panel'))
 dir.create(out,recursive=TRUE,showWarnings=FALSE)
+find_unique_file <- function(root, filename) {
+  candidates <- list.files(root, recursive=TRUE, full.names=TRUE)
+  matches <- candidates[basename(candidates)==filename]
+  if(length(matches)!=1L) stop('Expected one ',filename,' under ',root,'; found ',length(matches))
+  matches[[1L]]
+}
 genes <- c('PPP4R2','GXYLT2','KCNJ3','SMCHD1','CTSD','MRPL23',
            'FHIT','SLC10A7','KLHDC4','DACT1','DAAM1')
-meta <- as.data.table(readRDS(file.path(analysis_dir,
-  '07_downstream/revision_20260918/01_metadata/metadata_working.rds')))
-a <- fread(file.path(analysis_dir,
-  '07_downstream/revision_20260918/18_final_annotation_20260918/cluster_annotation.tsv'))
+metadata_file <- Sys.getenv('BRAINOMICS_METADATA_FILE',unset='')
+if(!nzchar(metadata_file)) metadata_file <- find_unique_file(analysis_dir,'metadata_working.rds')
+annotation_file <- Sys.getenv('BRAINOMICS_ANNOTATION_TABLE',
+  unset=file.path(repo,'results','annotation','cluster_annotation.tsv'))
+meta <- as.data.table(readRDS(metadata_file))
+a <- fread(annotation_file)
+if(!'CellType'%in%names(a) && 'Working_CellType'%in%names(a)) a[,CellType:=Working_CellType]
 m <- meta[Dataset==dataset,.(Cells,Dataset,Global_Donor_ID,Canonical_Donor_ID,
                              AgeIntervalID,BrainRegion,Cluster)]
-m[,Formal_CellType:=a$Working_CellType[match(Cluster,a$Cluster)]]
+m[,CellType:=a$CellType[match(Cluster,a$Cluster)]]
 stopifnot(nrow(m)>0L,!anyDuplicated(m$Cells),!anyNA(m$Canonical_Donor_ID),
-          !anyNA(m$AgeIntervalID),!anyNA(m$BrainRegion),!anyNA(m$Formal_CellType))
+          !anyNA(m$AgeIntervalID),!anyNA(m$BrainRegion),!anyNA(m$CellType))
 folder <- file.path(processed_dir,dataset)
 fmt <- fread(file.path(folder,'processed_object_format.tsv'))
 cm <- fread(file.path(folder,fmt$Canonical_Metadata[[1L]]),
@@ -53,7 +62,7 @@ for (layer in Layers(obj,assay='RNA',search='^counts')) {
   stopifnot(!anyNA(context$Cells),identical(q,context$Cells))
   feat <- cw$Canonical_Feature_ID[match(rownames(x),cw$Original_Feature_ID)]
   stopifnot(!anyNA(feat),!anyDuplicated(feat))
-  keyfields <- c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','Formal_CellType')
+  keyfields <- c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','CellType')
   groups <- unique(context[,..keyfields])
   context[,GI:=groups[context,on=keyfields,which=TRUE]]
   inc <- sparseMatrix(i=seq_len(nrow(context)),j=context$GI,x=1,
@@ -81,19 +90,19 @@ res <- rbindlist(out_parts)
 agg <- res[,.(Cells=sum(Cells),Library_Size=sum(Library_Size),
              Measured_Cells=sum(Measured_Cells),Gene_Count=sum(Gene_Count),
              Detected_Cells=sum(Detected_Cells)),
-           by=.(Dataset,Canonical_Donor_ID,AgeIntervalID,BrainRegion,Formal_CellType,Gene)]
+           by=.(Dataset,Canonical_Donor_ID,AgeIntervalID,BrainRegion,CellType,Gene)]
 agg[,`:=`(Measurement_Status=fcase(Measured_Cells==Cells,'complete',
                                    Measured_Cells==0L,'not_measured',default='partial'),
            Eligible=Cells>=20L & Library_Size>=1000)]
 agg[,`:=`(CPM=fifelse(Measurement_Status=='complete' & Library_Size>0,
                       1e6*Gene_Count/Library_Size,NA_real_),
            Detection=fifelse(Measurement_Status=='complete',Detected_Cells/Cells,NA_real_))]
-stopifnot(nrow(agg)==length(genes)*uniqueN(agg,by=c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','Formal_CellType')),
+stopifnot(nrow(agg)==length(genes)*uniqueN(agg,by=c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','CellType')),
           all(agg$Measured_Cells<=agg$Cells),all(agg$Detected_Cells<=agg$Measured_Cells))
 fwrite(agg,file.path(out,paste0('panel_',dataset,'.tsv.gz')),sep='\t')
 fwrite(data.table(Dataset=dataset,Input_Cells=nrow(m),Covered_Cells=length(covered),
-                  Groups=uniqueN(agg,by=c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','Formal_CellType')),
+                  Groups=uniqueN(agg,by=c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','CellType')),
                   Complete_Gene_Groups=sum(agg$Measurement_Status=='complete'),
                   Partial_Gene_Groups=sum(agg$Measurement_Status=='partial'),
                   Missing_Gene_Groups=sum(agg$Measurement_Status=='not_measured')),
-       file.path(out,paste0('audit_',dataset,'.tsv')),sep='\t')
+       file.path(out,paste0('source_coverage_',dataset,'.tsv')),sep='\t')

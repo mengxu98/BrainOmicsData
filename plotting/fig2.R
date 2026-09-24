@@ -1,7 +1,8 @@
 source("functions/config.R")
 dir.create("figures", recursive = TRUE, showWarnings = FALSE)
 if (Sys.getenv("BRAINOMICS_SKIP_FIG2_UMAP", unset = "0") != "1") {
-  status <- system2("Rscript", c("--vanilla", "plotting/fig2_umap_panels.R"))
+  rscript <- Sys.getenv("BRAINOMICS_RSCRIPT", file.path(R.home("bin"), "Rscript"))
+  status <- system2(rscript, c("--vanilla", "plotting/fig2_umap_panels.R"))
   if (status != 0L) stop("Figure 2 UMAP panel generation failed")
 }
 fig2_theme <- function(base_size = 7) {
@@ -25,8 +26,8 @@ fig2_row_theme <- theme(
   plot.title = element_text(size = 6.5, face = "plain")
 )
 
-# Same former Figure 2 aesthetics. No inherited estimates, significance stars or resampling intervals.
-full_lisi_complete <- file.exists(file.path(doc,"tables/full_lisi/COMPLETE.json"))
+# Figure 2 uses the shared manuscript style.
+full_lisi_complete <- file.exists(file.path(doc,"tables/full_lisi_dataset_summary.tsv"))
 if(full_lisi_complete) {
  all_lisi <- fread(file.path(doc,"tables/full_lisi_dataset_summary.tsv"))
  x <- all_lisi[Space=="latent50" & Label_Scheme=="Source_Full"]

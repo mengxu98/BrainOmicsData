@@ -337,7 +337,7 @@ if [ "$source_sha256" != "$expected_sha256" ]; then
   exit 1
 fi
 
-# A failed direct download on 131 can leave these exact resumable companions.
+# A failed direct download can leave these resumable companion files.
 # They are obsolete only after the complete destination has passed both the
 # download-record and cross-host SHA-256 gates above.
 rm -f "${destination_file}.tmp" "${destination_file}.resume"

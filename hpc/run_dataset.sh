@@ -18,7 +18,8 @@ case "$dataset" in
 esac
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-data_root="$(cd "$repo_dir/../.." && pwd)/data/BrainOmicsData"
+source "$repo_dir/functions/pipeline_lib.sh"
+data_root="$BRAINOMICS_DATA_ROOT"
 source "$repo_dir/functions/utils.sh"
 processed_dir="$data_root/processed/$dataset"
 run_dir="$processed_dir/run"
@@ -28,15 +29,11 @@ log_file="$run_dir/processing.log"
 exit_file="$run_dir/pipeline.exit"
 pid_file="$run_dir/pipeline.pid"
 lock_file="$run_dir/pipeline.lock"
-rscript_bin="$(command -v Rscript || true)"
+rscript_bin="$(command -v "$BRAINOMICS_RSCRIPT" || true)"
 
 if [ -z "$rscript_bin" ] || [ ! -x "$rscript_bin" ]; then
   echo "Rscript is unavailable" >&2
   exit 1
-fi
-
-if [ -x "$repo_dir/.venv/bin/python3" ] || [ -x "$repo_dir/.venv/bin/python" ]; then
-  export PATH="$repo_dir/.venv/bin:$PATH"
 fi
 
 is_true() {

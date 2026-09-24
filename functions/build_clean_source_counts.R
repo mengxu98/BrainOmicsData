@@ -10,8 +10,9 @@ stopifnot(verified$state == 'INPUTS_VERIFIED', verified$manifest_sha256 == 'df09
 out <- file.path(run, 'run', 'gene_removal_build', ds)
 dir.create(out, recursive=TRUE, showWarnings=FALSE)
 stopifnot(!file.exists(file.path(out, 'SUCCESS.json')))
-evidence <- file.path(run, c('applied_gene_row_exclusions.tsv', 'allowed_count_addition.tsv',
-                             'applied_gene_removal_policy.json', 'code/build_clean_source_counts.R'))
+evidence <- c(file.path(run, c('applied_gene_row_exclusions.tsv', 'allowed_count_addition.tsv',
+                              'applied_gene_removal_policy.json')),
+              normalizePath('functions/build_clean_source_counts.R'))
 hashes <- as.list(tools::md5sum(evidence))
 mask <- fread(evidence[1])[Dataset == ds]
 allowed <- fread(evidence[2])[Dataset == ds]

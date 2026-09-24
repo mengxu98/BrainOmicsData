@@ -62,7 +62,7 @@ metadata_schema_version <- brainomics_metadata_schema_version()
 datasets <- formal_datasets()
 if (!is.null(selected_dataset)) {
   if (!selected_dataset %in% datasets) {
-    stop("unknown formal dataset: ", selected_dataset)
+    stop("unknown dataset: ", selected_dataset)
   }
   datasets <- selected_dataset
 }

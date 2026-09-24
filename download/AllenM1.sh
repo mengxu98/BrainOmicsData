@@ -4,14 +4,14 @@
 # Source page:
 # https://brain-map.org/our-research/cell-types-taxonomies/cell-types-database-rna-seq-data/human-m1-10x
 # The processing workflow consumes these original Allen files directly.  The
-# Formal input is the complete author-released Allen human M1 matrix.
+# The complete author-released Allen human M1 matrix is used.
 
 set -e
 
 source "$(dirname "$0")/../functions/utils.sh"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_ROOT="$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData"
+DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData}"
 DATA_DIR="$DATA_ROOT/raw/AllenM1"
 
 DOWNLOAD_LIST="

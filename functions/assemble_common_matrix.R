@@ -22,7 +22,6 @@ merge_named_objects <- function(objects_list, genes, cells) {
 main <- function(run) {
   suppressPackageStartupMessages({library(Seurat); library(jsonlite); library(data.table)})
   Sys.setenv(BRAINOMICS_RUN_ROOT=run)
-  setwd(file.path(run, 'pipeline'))
   source('functions/data_paths.R'); source('functions/dataset_metadata.R')
   source('functions/processed_object.R'); source('functions/integration.R')
   options(Seurat.object.assay.version='v5'); setDTthreads(1)
@@ -53,7 +52,7 @@ main <- function(run) {
   }), datasets)
   cells <- unlist(lapply(objects_list, colnames), use.names=FALSE)
   stopifnot(length(cells) == 2602031)
-  out <- file.path(run, 'integration'); dir.create(out, recursive=TRUE, showWarnings=FALSE)
+  out <- brainomics_results_dir(); dir.create(out, recursive=TRUE, showWarnings=FALSE)
   list_file <- file.path(out, 'objects_list_processed.rds')
   # Level-1 gzip fits this independent run within the available HPC storage.
   temp <- paste0(list_file, '.tmp')
@@ -69,7 +68,7 @@ main <- function(run) {
   save_processed_object(object, file, compression='gzip', validate_reload=FALSE)
   artifacts <- setNames(lapply(c(list_file, file), function(p)
     list(bytes=unname(file.info(p)$size), sha256=processed_file_sha256(p))),
-    c('integration/objects_list_processed.rds', 'integration/objects_filtered.rds'))
+    basename(c(list_file, file)))
   record <- list(reference_cells=2602031, reference_genes=24659,
     source_identity_resolved=TRUE, count_aggregation_resolved=TRUE,
     zero_count_cells=0, artifacts=artifacts)

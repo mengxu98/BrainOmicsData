@@ -11,8 +11,8 @@ source "functions/pipeline_lib.sh"
 
 code_dir="download"
 overwrite="${1:-F}"
-check_command Rscript
-check_command python3
+check_command "$BRAINOMICS_RSCRIPT"
+check_command "$BRAINOMICS_PYTHON"
 
 should_process() {
   local target_file="$1"

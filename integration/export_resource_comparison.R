@@ -116,10 +116,7 @@ resources <- data.table(
     "human and mouse scRNA-seq and snRNA-seq", "snRNA-seq"
   ),
   Annotation_Depth = c(
-    paste0(
-      summary_value("Main_Cell_Types"),
-      " main classes; historical lineage analyses archived separately"
-    ),
+    paste0(summary_value("Main_Cell_Types"), " adopted major cell classes"),
     "10 major cell types and 22 subtypes", "18 cell types and 71 subtypes",
     "hierarchical global, cortical and non-cortical annotations",
     "24 subclasses and 153 cross-area consensus types"

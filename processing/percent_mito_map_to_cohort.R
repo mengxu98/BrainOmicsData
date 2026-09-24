@@ -6,18 +6,27 @@
 # blank, never zero.
 #
 # Usage: percent_mito_map_to_cohort.R ANALYSIS_DIR DATA_ROOT QC_DIR WORK_DIR
-suppressPackageStartupMessages({library(data.table);library(jsonlite)})
+suppressPackageStartupMessages(library(data.table))
 setDTthreads(2L)
 a<-commandArgs(TRUE);stopifnot(length(a)==4L)
 analysis<-a[1];data_root<-a[2];qc<-a[3];work<-a[4]
 dir.create(qc,recursive=TRUE,showWarnings=FALSE);dir.create(work,recursive=TRUE,showWarnings=FALSE)
-m<-as.data.table(readRDS(file.path(analysis,'07_downstream/revision_20260918/01_metadata/metadata_working.rds')))[,.(Cells,Dataset,Original_Cell_ID)]
+find_unique_file<-function(root,filename){candidates<-list.files(root,recursive=TRUE,full.names=TRUE);matches<-candidates[basename(candidates)==filename];if(length(matches)!=1L)stop('Expected one ',filename,' under ',root,'; found ',length(matches));matches[[1L]]}
+metadata_file<-Sys.getenv('BRAINOMICS_METADATA_FILE',unset='')
+if(!nzchar(metadata_file))metadata_file<-find_unique_file(analysis,'metadata_working.rds')
+m<-as.data.table(readRDS(metadata_file))[,.(Cells,Dataset,Original_Cell_ID)]
 stopifnot(nrow(m)==2602031L,!anyDuplicated(m$Cells),uniqueN(m$Dataset)==22L)
-cl<-readRDS(file.path(dirname(analysis),'final_results_20260917/cluster_assignments.rds'))
+cluster_file<-Sys.getenv('BRAINOMICS_CLUSTER_ASSIGNMENTS',unset='')
+if(!nzchar(cluster_file)){
+ frozen<-Sys.getenv('BRAINOMICS_FROZEN_DIR',unset='')
+ if(!nzchar(frozen))stop('Set BRAINOMICS_FROZEN_DIR or BRAINOMICS_CLUSTER_ASSIGNMENTS')
+ cluster_file<-file.path(frozen,'cluster_assignments.rds')
+}
+cl<-readRDS(cluster_file)
 m<-m[match(cl$Cell,Cells)];stopifnot(identical(m$Cells,cl$Cell))
 feature<-fread(file.path(qc,'feature_inventory.tsv'));result<-list();mapping<-list();checks<-list()
 for(ds in unique(m$Dataset)){
- message(Sys.time(),' Mapping ',ds)
+ message('Mapping ',ds)
  z<-copy(m[Dataset==ds]);stopifnot(!anyDuplicated(z$Original_Cell_ID))
  p<-file.path(data_root,'processed',ds,'metadata_canonical.tsv.gz')
  canon<-fread(p,select=c('Cells','Original_Cell_ID'))
@@ -57,10 +66,11 @@ fwrite(rbindlist(mapping),file.path(work,'source_cell_crosswalk.tsv.gz'),sep='\t
 v<-rbindlist(result);v<-v[match(m$Cells,Cells)];stopifnot(identical(v$Cells,m$Cells))
 coverage<-rbindlist(checks);fwrite(coverage,file.path(work,'percent_mito_mapping_coverage.tsv'),sep='\t',na='',quote=FALSE)
 ready<-all(v$Source_Status%in%c('COMPUTED_SOURCE_COUNTS','NO_MT_FEATURES','ZERO_TOTAL','SOURCE_CELL_ABSENT'))
-if(ready){
- stopifnot(all(!is.na(v$percent_mito)==(v$Source_Status=='COMPUTED_SOURCE_COUNTS')))
- tmp<-file.path(work,'percent_mito_by_cell.partial.tsv.gz');fwrite(v,tmp,sep='\t',na='',quote=FALSE)
- stopifnot(file.rename(tmp,file.path(work,'percent_mito_by_cell.tsv.gz')))
- }
-write_json(list(state=if(ready)'LOOKUP_READY'else'INCOMPLETE',cells=nrow(v),nonmissing=sum(!is.na(v$percent_mito)),coverage=coverage,source_ids_one_to_one=TRUE,zero_imputation=FALSE,computed_from_published_panel=FALSE),file.path(work,'mapping_status.json'),pretty=TRUE,auto_unbox=TRUE)
-message(Sys.time(),' MAPPING_',if(ready)'COMPLETE'else'INCOMPLETE');print(coverage)
+if(!ready){
+ print(coverage)
+ stop('Source mitochondrial-count inputs are incomplete')
+}
+stopifnot(all(!is.na(v$percent_mito)==(v$Source_Status=='COMPUTED_SOURCE_COUNTS')))
+tmp<-file.path(work,'percent_mito_by_cell.partial.tsv.gz');fwrite(v,tmp,sep='\t',na='',quote=FALSE)
+stopifnot(file.rename(tmp,file.path(work,'percent_mito_by_cell.tsv.gz')))
+message('Per-cell mitochondrial fractions written for ',nrow(v),' cells')

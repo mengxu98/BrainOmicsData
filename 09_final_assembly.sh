@@ -1,43 +1,38 @@
 #!/usr/bin/env bash
-# Import scVI into the assembled object, validate the common-input comparison and
-# evaluate the full-cell latent space.
+# Collect the completed R reductions, import scVI, validate the common-input
+# comparison and evaluate the full-cell latent space.
 #
-# Optional BRAINOMICS_RUN_ROOT: when set, the stage runs inside
-# $BRAINOMICS_RUN_ROOT/pipeline instead of this checkout.
+# All integration methods must finish before this stage begins.
 #
 # Requirements: 100 GB memory; no GPU.
 set -euo pipefail
 
 BRAINOMICS_STAGE=09_final_assembly
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/functions/pipeline_lib.sh"
-source "functions/utils.sh"
 
+cd "$BRAINOMICS_REPO_ROOT"
 brainomics_require_executor
 
 overwrite="${1:-F}"
 export BRAINOMICS_EVALUATION_OVERWRITE="$overwrite"
 
-code_root="$BRAINOMICS_REPO_ROOT"
-if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
-  code_root="$BRAINOMICS_RUN_ROOT/pipeline"
-  brainomics_require_dir "$code_root"
-fi
-cd "$code_root"
-
 if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
-  run_root_spec=()
-  if [ -n "${BRAINOMICS_RUN_ROOT:-}" ]; then
-    run_root_spec=("RUN_ROOT=$BRAINOMICS_RUN_ROOT")
-  fi
   # hpc/integration_finalize.sbatch runs this whole stage, both the
   # finalize and the evaluation phase.
   brainomics_run_sbatch hpc/integration_finalize.sbatch \
-    "OVERWRITE=$overwrite" "${run_root_spec[@]+"${run_root_spec[@]}"}"
+    "OVERWRITE=$overwrite"
   exit 0
 fi
 
-check_command Rscript
-Rscript integration/datasets_integration_04.R
-Rscript integration/datasets_integration_05.R
+brainomics_require_command "$BRAINOMICS_RSCRIPT"
+for method in raw_umap harmony rpca; do
+  brainomics_require_file "$BRAINOMICS_RESULTS_DIR/r_checkpoints/${method}_reductions.rds"
+done
+for artifact in scvi_output_audit.tsv cell_ids.txt scvi_latent.float32.bin scvi_versions.tsv; do
+  brainomics_require_file "$BRAINOMICS_RESULTS_DIR/scvi_output/$artifact"
+done
+"$BRAINOMICS_RSCRIPT" functions/run_parallel_integration.R "$BRAINOMICS_RUN_ROOT" collect
+"$BRAINOMICS_RSCRIPT" integration/datasets_integration_04.R
+"$BRAINOMICS_RSCRIPT" integration/datasets_integration_05.R
 
-brainomics_log "integrated object and latent-space evaluation written under $code_root"
+brainomics_log "integrated object and latent-space evaluation written to $BRAINOMICS_RESULTS_DIR"

@@ -12,18 +12,16 @@ source("functions/utils.R")
 
 panel_dir <- "figures"
 asset_dir <- "results/annotation"
-analysis_dir <- Sys.getenv(
-  "BRAINOMICS_ANALYSIS_DIR",
-  unset = file.path(
-    "outputs", "reprocessing_plan_20260913", "execution_20260914_34387",
-    "analysis_from_scratch_20260917"
-  )
-)
-summary_dir <- Sys.getenv(
-  "BRAINOMICS_REFERENCE_SUMMARY",
-  unset = file.path("results", "analysis_run", "07_downstream",
-                    "revision_20260918", "reference_summary")
-)
+summary_dir <- Sys.getenv("BRAINOMICS_REFERENCE_SUMMARY", unset = "")
+if (!nzchar(summary_dir)) {
+  analysis_root <- Sys.getenv("BRAINOMICS_ANALYSIS_DIR", unset = file.path("results", "analysis_run"))
+  candidates <- list.files(analysis_root, recursive = TRUE, full.names = TRUE)
+  matches <- dirname(candidates[basename(candidates) == "reference_summary.tsv"])
+  if (length(matches) != 1L) {
+    stop("Set BRAINOMICS_REFERENCE_SUMMARY; found ", length(matches), " candidate directories")
+  }
+  summary_dir <- matches[[1L]]
+}
 
 dir.create(panel_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(asset_dir, recursive = TRUE, showWarnings = FALSE)
@@ -51,7 +49,7 @@ if (!identical(unname(observed), unname(as.numeric(expected))) ||
   sum(celltypes$Cells) != 2602031 ||
   sum(reported_ages$Cells) != 2602031 ||
   sum(age_sex_specimens$Specimens) != 448L) {
-  stop("Figure 1 inputs differ from the frozen reference-summary contract")
+  stop("Figure 1 inputs differ from the reference summary")
 }
 
 access <- access[access$dataset %in% datasets$Dataset, , drop = FALSE]
@@ -218,9 +216,7 @@ write_tsv(
   file.path(asset_dir, "figure1_modality_dataset_totals.tsv")
 )
 
-message("Figure 1 panels completed in ", panel_dir)
-
-message("Resource panels written")
+message("Figure 1 resource panels written")
 
 source("plotting/fig1b_age_coverage.R", local = new.env())
 source("plotting/fig1c_workflow.R", local = new.env())

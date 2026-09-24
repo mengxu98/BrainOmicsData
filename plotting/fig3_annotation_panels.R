@@ -40,7 +40,7 @@ ggsave("figures/fig3c.pdf", p, device = grDevices::cairo_pdf,
   width = 78, height = 52, units = "mm", family = "Arial")
 paths <- file.path("figures", c("fig3a.pdf",
   "fig3b.pdf", "fig3c.pdf"))
-work <- tempfile("fig3-preview-"); dir.create(work)
+work <- tempfile("fig3-layout-"); dir.create(work)
 aspect <- vapply(paths, function(path) {
   crop <- file.path(work, basename(path))
   system2("pdfcrop", c("--margins", shQuote("3 3 3 3"), shQuote(path), shQuote(crop)), stdout = FALSE)

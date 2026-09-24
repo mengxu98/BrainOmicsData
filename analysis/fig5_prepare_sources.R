@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Build Figure 5 source tables from all 22 extracted sources and the frozen S15/PFC reuse analysis.
+# Build Figure 5 source tables from all 22 extracted sources and the S15/PFC reuse analysis.
 suppressPackageStartupMessages(library(data.table))
 setDTthreads(2L)
 source('functions/data_paths.R')
@@ -8,20 +8,21 @@ input_dir <- Sys.getenv('BRAINOMICS_FIG5_PANEL_DIR',file.path(repo,'results/fig5
 out <- Sys.getenv('BRAINOMICS_FIG5_SOURCE_DIR',file.path(repo,'figures'))
 dir.create(out,recursive=TRUE,showWarnings=FALSE)
 files <- list.files(input_dir, '^panel_.*[.]tsv[.]gz$',full.names=TRUE)
-audits <- list.files(input_dir, '^audit_.*[.]tsv$',full.names=TRUE)
-stopifnot(length(files)==22L,length(audits)==22L)
-a <- rbindlist(lapply(audits,fread))
+coverage_files <- list.files(input_dir, '^source_coverage_.*[.]tsv$',full.names=TRUE)
+stopifnot(length(files)==22L,length(coverage_files)==22L)
+a <- rbindlist(lapply(coverage_files,fread))
 stopifnot(!anyDuplicated(a$Dataset),all(a$Input_Cells==a$Covered_Cells),
           sum(a$Input_Cells)==2602031L)
 p <- rbindlist(lapply(files,fread))
+if('Formal_CellType'%in%names(p) && !'CellType'%in%names(p)) setnames(p,'Formal_CellType','CellType')
 genes <- c('PPP4R2','GXYLT2','KCNJ3','SMCHD1','CTSD','MRPL23',
            'FHIT','SLC10A7','KLHDC4','DACT1','DAAM1')
 stopifnot(setequal(unique(p$Dataset),a$Dataset),setequal(unique(p$Gene),genes),
-          uniqueN(p$Formal_CellType)==12L,
+          uniqueN(p$CellType)==12L,
           !anyDuplicated(p,by=c('Dataset','Canonical_Donor_ID','AgeIntervalID',
-                                'BrainRegion','Formal_CellType','Gene')),
+                                'BrainRegion','CellType','Gene')),
           all(p$Measured_Cells<=p$Cells),all(p$Detected_Cells<=p$Measured_Cells))
-fwrite(a,file.path(out,'full_panel_source_audit.tsv'),sep='\t')
+fwrite(a,file.path(out,'full_panel_source_coverage.tsv'),sep='\t')
 m <- p[,.(Cells=sum(Cells),Measured_Cells=sum(Measured_Cells),
           Groups=.N,Complete_Groups=sum(Measurement_Status=='complete'),
           Partial_Groups=sum(Measurement_Status=='partial')),
@@ -31,7 +32,7 @@ d <- p[,.(Cells=sum(Cells),Library_Size=sum(Library_Size),
           Measured_Cells=sum(Measured_Cells),Gene_Count=sum(Gene_Count),
           Detected_Cells=sum(Detected_Cells),Age_Intervals=uniqueN(AgeIntervalID),
           Brain_Regions=uniqueN(BrainRegion)),
-       by=.(Dataset,Canonical_Donor_ID,Formal_CellType,Gene)]
+       by=.(Dataset,Canonical_Donor_ID,CellType,Gene)]
 d[,`:=`(Measurement_Status=fcase(Measured_Cells==Cells,'complete',
                                  Measured_Cells==0L,'not_measured',default='partial'),
          Eligible=Cells>=20L & Library_Size>=1000 & Measured_Cells==Cells)]
@@ -42,15 +43,15 @@ fwrite(d,file.path(out,'full_panel_donor_type_expression.tsv.gz'),sep='\t')
 st <- d[Eligible==TRUE,.(Donors=.N,Cells=sum(Cells),
                            MeanLog1pCPM=mean(Log1pCPM),
                            MeanDetection=mean(Detection)),
-        by=.(Dataset,Formal_CellType,Gene)]
+        by=.(Dataset,CellType,Gene)]
 fwrite(st,file.path(out,'full_panel_gene_type_by_study.tsv'),sep='\t')
 eq <- st[,.(Studies=.N,Study_Equal_Log1pCPM=mean(MeanLog1pCPM),
              Study_Equal_Detection=mean(MeanDetection),
              Study_Donor_Groups=sum(Donors),Eligible_Cells=sum(Cells)),
-         by=.(Formal_CellType,Gene)]
+         by=.(CellType,Gene)]
 unq <- d[Eligible==TRUE,.(Unique_Donors=uniqueN(Canonical_Donor_ID)),
-         by=.(Formal_CellType,Gene)]
-eq <- merge(eq,unq,by=c('Formal_CellType','Gene'),all.x=TRUE)
+         by=.(CellType,Gene)]
+eq <- merge(eq,unq,by=c('CellType','Gene'),all.x=TRUE)
 eq[,Z:=if(.N>1L && sd(Study_Equal_Log1pCPM)>0)
             (Study_Equal_Log1pCPM-mean(Study_Equal_Log1pCPM))/sd(Study_Equal_Log1pCPM)
          else 0,by=Gene]
@@ -59,12 +60,12 @@ fwrite(eq,file.path(out,'full_panel_gene_type_study_equal.tsv'),sep='\t')
 
 # Matched age/region/donor contrast across the complete resource.
 base <- p[Eligible==TRUE & Measurement_Status=='complete' &
-            Formal_CellType %in% c('Oligodendrocytes','Microglia')]
+            CellType %in% c('Oligodendrocytes','Microglia')]
 base[,Log1pCPM:=log1p(CPM)]
-ol <- base[Formal_CellType=='Oligodendrocytes',
+ol <- base[CellType=='Oligodendrocytes',
            .(Dataset,Canonical_Donor_ID,AgeIntervalID,BrainRegion,Gene,
              OL=Log1pCPM,OL_Cells=Cells)]
-mg <- base[Formal_CellType=='Microglia',
+mg <- base[CellType=='Microglia',
            .(Dataset,Canonical_Donor_ID,AgeIntervalID,BrainRegion,Gene,
              Micro=Log1pCPM,Micro_Cells=Cells)]
 pair <- merge(ol,mg,by=c('Dataset','Canonical_Donor_ID','AgeIntervalID','BrainRegion','Gene'))
@@ -99,10 +100,26 @@ ans <- x[,{
 ans[,Q_BH:=p.adjust(P_Sign,method='BH')]
 ans <- ans[match(genes,Gene)]
 fwrite(ans,file.path(out,'full_panel_source_direction_sign_test.tsv'),sep='\t')
-# Reconstruct fixed-context C from frozen donor pseudobulk counts. This
+# Reconstruct fixed-context C from donor pseudobulk counts. This
 # S15/PFC analysis is separate from the all-age/full-region extraction above.
 analysis_dir <- Sys.getenv('BRAINOMICS_ANALYSIS_DIR',file.path(repo,'results/analysis_run'))
-fixed_dir <- file.path(analysis_dir,'07_downstream/revision_20260918/04_gene_reuse')
+fixed_dir <- Sys.getenv('BRAINOMICS_FIG5_FIXED_DIR',unset='')
+if(!nzchar(fixed_dir)) {
+  downstream <- file.path(analysis_dir,'07_downstream')
+  run_candidates <- c(analysis_dir,
+    if(dir.exists(downstream)) list.dirs(downstream,recursive=FALSE,full.names=TRUE))
+  run_candidates <- run_candidates[
+    file.exists(file.path(run_candidates,'01_metadata','metadata_working.rds'))
+  ]
+  if(length(run_candidates)!=1L) stop('Set BRAINOMICS_FIG5_FIXED_DIR; found ',length(run_candidates),' analysis runs')
+  candidates <- list.dirs(run_candidates[[1L]],recursive=FALSE,full.names=TRUE)
+  candidates <- candidates[
+    file.exists(file.path(candidates,'fixed_panel_donor_counts.tsv.gz')) &
+    file.exists(file.path(candidates,'donor_type_eligibility.tsv'))
+  ]
+  if(length(candidates)!=1L) stop('Set BRAINOMICS_FIG5_FIXED_DIR; found ',length(candidates),' candidate directories')
+  fixed_dir <- candidates[[1L]]
+}
 fixed_counts <- fread(file.path(fixed_dir,'fixed_panel_donor_counts.tsv.gz'))
 fixed_eligibility <- fread(file.path(fixed_dir,'donor_type_eligibility.tsv'))
 eligible_keys <- fixed_eligibility[Eligible==TRUE,
@@ -134,14 +151,14 @@ if (file.exists(frozen_pairs_path)) {
             identical(fixed$OL_Counts,frozen_pairs$OL_Counts),
             identical(fixed$Micro_Counts,frozen_pairs$Micro_Counts),
             max(abs(fixed$Difference-frozen_pairs$Difference))<1e-12)
-  # Preserve the frozen table's original formatting when available.
+  # Preserve the source table's numeric formatting when available.
   stopifnot(file.copy(frozen_pairs_path,
                       file.path(out,'fig5_fixed_paired_donor_source.tsv'),overwrite=TRUE))
 } else {
   fwrite(fixed,file.path(out,'fig5_fixed_paired_donor_source.tsv'),sep='\t')
 }
-# Four small tables are the plotting inputs. Intermediate audit tables stay
-# in the source directory and are not needed by plotting/fig5.R.
+# Four compact tables are the plotting inputs; the remaining tables document
+# source coverage and intermediate summaries.
 stopifnot(file.copy(file.path(out,'full_panel_gene_type_study_equal.tsv'),
                     file.path(out,'fig5_full_gene_type_source.tsv'),overwrite=TRUE),
           file.copy(file.path(out,'full_panel_paired_by_study.tsv'),

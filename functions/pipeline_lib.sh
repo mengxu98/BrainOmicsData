@@ -6,13 +6,6 @@ set -euo pipefail
 
 BRAINOMICS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BRAINOMICS_REPO_ROOT="$(cd "$BRAINOMICS_LIB_DIR/.." && pwd)"
-BRAINOMICS_DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$BRAINOMICS_REPO_ROOT/../.." && pwd)/data/BrainOmicsData}"
-BRAINOMICS_RESULTS_DIR="${BRAINOMICS_RESULTS_DIR:-$BRAINOMICS_DATA_ROOT/integration_25}"
-BRAINOMICS_EXECUTOR="${BRAINOMICS_EXECUTOR:-local}"
-BRAINOMICS_POLL_SECONDS="${BRAINOMICS_POLL_SECONDS:-60}"
-
-export BRAINOMICS_REPO_ROOT BRAINOMICS_DATA_ROOT BRAINOMICS_RESULTS_DIR
-export BRAINOMICS_EXECUTOR
 
 # Optional site-specific configuration for the Slurm helpers (hpc/local.env is
 # git-ignored; hpc/local.env.example documents the variables).
@@ -20,6 +13,18 @@ if [ -f "$BRAINOMICS_REPO_ROOT/hpc/local.env" ]; then
   # shellcheck disable=SC1091
   source "$BRAINOMICS_REPO_ROOT/hpc/local.env"
 fi
+# The same R/Python prefix is used by local drivers and Slurm jobs.
+source "$BRAINOMICS_REPO_ROOT/environment/activate.sh"
+BRAINOMICS_DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$BRAINOMICS_REPO_ROOT/../.." && pwd)/data/BrainOmicsData}"
+BRAINOMICS_RUN_ROOT="${BRAINOMICS_RUN_ROOT:-$BRAINOMICS_REPO_ROOT/results/run_root}"
+BRAINOMICS_RESULTS_DIR="${BRAINOMICS_RESULTS_DIR:-$BRAINOMICS_RUN_ROOT/integration}"
+BRAINOMICS_EXECUTOR="${BRAINOMICS_EXECUTOR:-local}"
+BRAINOMICS_RSCRIPT="${BRAINOMICS_RSCRIPT:-Rscript}"
+BRAINOMICS_PYTHON="${BRAINOMICS_PYTHON:-python3}"
+BRAINOMICS_SCVI_PYTHON="${BRAINOMICS_SCVI_PYTHON:-python3}"
+export BRAINOMICS_REPO_ROOT BRAINOMICS_DATA_ROOT BRAINOMICS_RUN_ROOT
+export BRAINOMICS_RESULTS_DIR BRAINOMICS_EXECUTOR BRAINOMICS_RSCRIPT BRAINOMICS_SCVI_PYTHON
+export BRAINOMICS_PYTHON
 export BRAINOMICS_HPC_ROOT BRAINOMICS_HPC_PARTITION BRAINOMICS_HPC_GPU_PARTITION
 export BRAINOMICS_HPC_LOG_DIR BRAINOMICS_HPC_HOST BRAINOMICS_HPC_PORT BRAINOMICS_HPC_DATA_ROOT
 
@@ -61,20 +66,19 @@ brainomics_require_executor() {
   esac
   if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
     brainomics_require_command sbatch
-    brainomics_require_command squeue
-    [ -n "${BRAINOMICS_HPC_ROOT:-}" ] || brainomics_die "set BRAINOMICS_HPC_ROOT in hpc/local.env"
     [ -n "${BRAINOMICS_HPC_PARTITION:-}" ] || brainomics_die "set BRAINOMICS_HPC_PARTITION in hpc/local.env"
   fi
 }
 
-# Submit one hpc/*.sbatch script and return its job id in stdout.
+# Submit one hpc/*.sbatch script, wait for its exit status, and return its job id.
 brainomics_submit() {
   local script="$1"
   shift
-  local export_spec="ALL"
-  if [ "$#" -gt 0 ]; then
-    export_spec="ALL,$*"
-  fi
+  local assignment
+  for assignment in "$@"; do
+    [[ "$assignment" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] ||
+      brainomics_die "invalid Slurm environment assignment: $assignment"
+  done
   local partition="$BRAINOMICS_HPC_PARTITION"
   if grep -q '^# brainomics-partition: gpu' "$script" 2>/dev/null; then
     partition="${BRAINOMICS_HPC_GPU_PARTITION:-$partition}"
@@ -83,29 +87,14 @@ brainomics_submit() {
   mkdir -p "$log_dir"
   local base
   base="$(basename "$script" .sbatch)"
-  sbatch --parsable --partition="$partition" \
-    --output="$log_dir/${base}_%j.out" --error="$log_dir/${base}_%j.err" \
-    --export="$export_spec" "$script"
-}
-
-# Block until the job leaves the queue, then report its accounting state.
-brainomics_wait_job() {
-  local job_id="$1"
-  local state=""
-  while squeue -h -j "$job_id" | grep -q .; do
-    sleep "$BRAINOMICS_POLL_SECONDS"
-  done
-  if command -v sacct >/dev/null 2>&1; then
-    state="$(sacct -n -X -j "$job_id" --format=State 2>/dev/null | head -n 1 | tr -d ' ')"
+  local sbatch_args=(--parsable --wait --partition="$partition"
+    --output="$log_dir/${base}_%j.out" --error="$log_dir/${base}_%j.err")
+  if [ -n "${BRAINOMICS_SLURM_MEMORY:-}" ]; then
+    sbatch_args+=(--mem="$BRAINOMICS_SLURM_MEMORY")
   fi
-  case "$state" in
-    ""|COMPLETED|COMPLETING)
-      return 0
-      ;;
-    *)
-      brainomics_die "job $job_id finished with state $state"
-      ;;
-  esac
+  # Set overrides in sbatch's environment, then export it intact. This also
+  # preserves spaces/commas in values without Slurm's assignment-list parsing.
+  env "$@" sbatch "${sbatch_args[@]}" --export=ALL "$script"
 }
 
 brainomics_run_sbatch() {
@@ -113,11 +102,11 @@ brainomics_run_sbatch() {
   shift
   brainomics_require_file "$BRAINOMICS_REPO_ROOT/$script"
   local job_id
+  brainomics_log "submitting $script and waiting for completion"
   # The submitted job runs the stage body; it must not resubmit itself.
   job_id="$(brainomics_submit "$BRAINOMICS_REPO_ROOT/$script" \
-    "BRAINOMICS_EXECUTOR=local" "$@")"
-  brainomics_log "submitted $script as job $job_id"
-  brainomics_wait_job "$job_id"
+    "BRAINOMICS_EXECUTOR=local" "$@")" ||
+    brainomics_die "$script submission or execution failed"
   brainomics_log "$script completed (job $job_id)"
 }
 

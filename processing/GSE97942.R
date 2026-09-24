@@ -1,8 +1,8 @@
 source("functions/prepare_env.R")
 source("functions/dataset_metadata.R")
 
-data_dir <- "../../data/BrainOmicsData/raw/GSE97942/"
-res_dir <- check_dir("../../data/BrainOmicsData/processed/GSE97942/")
+data_dir <- brainomics_data_path("raw/GSE97942/")
+res_dir <- check_dir(brainomics_data_path("processed/GSE97942/"))
 
 thisutils::log_message("Start loading data...")
 counts_cerebellar_hemisphere <- read.table(

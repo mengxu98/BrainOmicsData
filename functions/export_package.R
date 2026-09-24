@@ -6,6 +6,16 @@ a <- commandArgs(TRUE)
 stopifnot(length(a)==4L)
 frozen <- normalizePath(a[1]); analysis <- normalizePath(a[2]); package <- a[3]; internal <- a[4]
 for (d in c(package,internal,file.path(package,c('expression','metadata','embeddings','objects','validation','scripts','provenance')))) dir.create(d,recursive=TRUE,showWarnings=FALSE)
+find_unique_file <- function(root, filename) {
+ candidates <- list.files(root,recursive=TRUE,full.names=TRUE)
+ matches <- candidates[basename(candidates)==filename]
+ if(length(matches)!=1L) stop('Expected one ',filename,' under ',root,'; found ',length(matches))
+ matches[[1L]]
+}
+configured_file <- function(variable, root, filename) {
+ value <- Sys.getenv(variable,unset='')
+ if(nzchar(value)) normalizePath(value,mustWork=TRUE) else find_unique_file(root,filename)
+}
 log <- function(x) message(format(Sys.time()),' ',x)
 json <- function(x,p) write_json(x,p,pretty=TRUE,auto_unbox=TRUE,na='null',digits=16)
 known <- function(x) !is.na(x)&nzchar(trimws(as.character(x)))&!tolower(trimws(as.character(x)))%in%c('unknown','not reported','not available','na','nan')
@@ -23,13 +33,14 @@ stopifnot(all(c('Cells','Dataset','percent_mito','Source_Status')%in%names(qc)),
 stopifnot(all(qc$Source_Status%in%c('COMPUTED_SOURCE_COUNTS','NO_MT_FEATURES','ZERO_TOTAL','SOURCE_CELL_ABSENT')))
 stopifnot(all(is.na(qc$percent_mito)|(is.finite(qc$percent_mito)&qc$percent_mito>=0&qc$percent_mito<=100)))
 stopifnot(all(!is.na(qc$percent_mito)==(qc$Source_Status=='COMPUTED_SOURCE_COUNTS')))
-log('Loading frozen expression object for serialization')
+log('Loading expression object for serialization')
 obj <- readRDS(file.path(frozen,'objects_integrated_clustered.rds'))
 stopifnot(ncol(obj)==2602031L,nrow(obj)==24659L)
 cells<-colnames(obj); genes<-rownames(obj)
 stopifnot(!anyDuplicated(cells),!anyDuplicated(genes))
-log('Loading curated age, donor and specimen metadata')
-m<-as.data.table(readRDS(file.path(analysis,'07_downstream/revision_20260918/01_metadata/metadata_working.rds')))
+log('Loading age, donor and specimen metadata')
+metadata_file<-configured_file('BRAINOMICS_METADATA_FILE',analysis,'metadata_working.rds')
+m<-as.data.table(readRDS(metadata_file))
 m<-m[match(cells,Cells)]
 stopifnot(identical(m$Cells,cells),uniqueN(m$Dataset)==22L)
 qc<-qc[match(cells,Cells)]
@@ -42,7 +53,8 @@ raw<-as.character(src$source_cell_type_original_label)
 stopifnot(length(raw)==length(cells))
 # Preserve the reported original label, including source-specific taxonomy depth.
 raw[!known(raw)]<-NA_character_
-side<-fread(file.path(analysis,'07_downstream/revision_20260918/01_metadata/cell_source_identifier_sidecar.tsv.gz'),select=c('Cells','Original_Sample_ID'))
+sidecar_file<-configured_file('BRAINOMICS_SOURCE_ID_SIDECAR',analysis,'cell_source_identifier_sidecar.tsv.gz')
+side<-fread(sidecar_file,select=c('Cells','Original_Sample_ID'))
 side<-side[match(cells,Cells)];stopifnot(identical(side$Cells,cells))
 pub<-sprintf('Cell%07d',seq_along(cells))
 sample<-make_ids(m$Specimen_ID_Scoped,'S');donor<-make_ids(m$Canonical_Donor_ID,'D')
@@ -152,6 +164,4 @@ manifest[, Cross_Dataset_Donors := vapply(Dataset, function(d) {
 }, '')]
 manifest <- merge(manifest, ctsrc, by='Dataset', all.x=TRUE)
 fwrite(manifest, file.path(package,'provenance/dataset_manifest.tsv'), sep='\t')
-json(list(state='EXPORTED',cells=nrow(out),genes=length(genes),datasets=22,clusters=75,cell_types=12,metadata_columns=names(out),canonical_donors=286,specimens=448,verified_libraries=3744,full_integration_rerun=FALSE,raw_label_field='source_cell_type_original_label',exported_at=as.character(Sys.time())),file.path(internal,'export_complete.json'))
-writeLines(capture.output(sessionInfo()),file.path(internal,'export_sessionInfo.txt'))
-log('EXPORT_COMPLETE')
+log('Package files written')

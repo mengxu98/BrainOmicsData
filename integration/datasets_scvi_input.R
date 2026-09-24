@@ -67,7 +67,7 @@ if (!file.exists(input_file) || !file.exists(list_file)) {
 }
 dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
 
-thisutils::log_message("[scvi-input] ", "Auditing all 25 raw-count reference datasets")
+thisutils::log_message("[scvi-input] ", paste("Checking raw counts for all", length(reference_datasets()), "reference datasets"))
 stage_started <- Sys.time()
 record_stage_timing("scVI_input_audit", "start")
 objects_list <- readRDS(list_file)

@@ -13,7 +13,7 @@ process_allen <- function() {
     "allen_csv_to_h5ad_shards.py"
   )
   if (overwrite || !file.exists(manifest)) {
-    python <- "python3"
+    python <- Sys.getenv("BRAINOMICS_PYTHON", "python3")
     status <- system2(
       python,
       c(

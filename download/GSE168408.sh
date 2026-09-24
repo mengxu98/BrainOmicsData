@@ -8,7 +8,7 @@
 # code: https://github.com/ListerLab/pfc_development
 #
 # The GEO archive is downloaded in full and contains all released human
-# snRNA-seq, snATAC-seq and organoid source files. Formal RNA preprocessing
+# snRNA-seq, snATAC-seq and organoid source files. RNA preprocessing
 # uses the author-released RNA-all H5AD, whose default X matrix is full raw
 # counts, together with its independent barcode and gene metadata files.
 
@@ -17,7 +17,7 @@ set -e
 source "$(dirname "$0")/../functions/utils.sh"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA_ROOT="$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData"
+DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$REPO_DIR/../.." && pwd)/data/BrainOmicsData}"
 DATA_DIR="$DATA_ROOT/raw/GSE168408"
 
 DOWNLOAD_LIST="

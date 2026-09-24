@@ -14,8 +14,12 @@ source("functions/utils.R")
 
 source("functions/config.R")
 panel_dir <- "figures";dir.create(panel_dir, recursive = TRUE, showWarnings = FALSE);four_method_only<-FALSE
-metadata <- fread(file.path(root,"00_input_audit/compact/core_metadata_minimal.tsv.gz"))
-embedding <- readRDS(file.path(root,"00_input_audit/compact/embedding_umap.rpca.rds"))
+metadata <- fread(resolve_input_file(
+  "BRAINOMICS_FIG2_METADATA_FILE", root, "core_metadata_minimal.tsv.gz"
+))
+embedding <- readRDS(resolve_input_file(
+  "BRAINOMICS_RPCA_UMAP_FILE", root, "embedding_umap.rpca.rds"
+))
 stopifnot(is.matrix(embedding),nrow(embedding)==2602031L,identical(rownames(embedding),metadata$Cells))
 umap <- data.frame(Cell=metadata$Cells,RPCA_1=embedding[,1],RPCA_2=embedding[,2])
 assignments <- data.frame(Cells=metadata$Cells,Cluster=metadata$Cluster,CellType=a$Working_CellType[match(metadata$Cluster,a$Cluster)])

@@ -1,18 +1,12 @@
 args <- commandArgs(trailingOnly = TRUE)
 repo_root <- if (length(args) >= 1L) normalizePath(args[[1L]]) else normalizePath(".")
-profile <- if (length(args) >= 2L) args[[2L]] else "integration"
-lock_name <- switch(profile,
-  integration = "r-packages.lock.tsv",
-  preprocessing = "r-preprocessing-packages.lock.tsv",
-  `local-validation` = "r-local-validation.lock.tsv",
-  stop("Unknown environment profile: ", profile)
-)
-lock_file <- file.path(repo_root, "environment", lock_name)
+lock_file <- file.path(repo_root, "environment", "r-packages.lock.tsv")
 if (!file.exists(lock_file)) {
   stop("Missing R package lock manifest: ", lock_file)
 }
 
 lock <- utils::read.delim(lock_file, check.names = FALSE, stringsAsFactors = FALSE)
+stopifnot(!anyDuplicated(lock$Package), sum(lock$Package == "R") == 1L)
 if (!identical(as.character(getRversion()), lock$Version[lock$Package == "R"])) {
   stop(
     "R version mismatch: expected ", lock$Version[lock$Package == "R"],
@@ -44,11 +38,18 @@ if (any(mismatch)) {
     packages$Package[mismatch], " expected=", packages$Version[mismatch],
     " observed=", ifelse(is.na(observed[mismatch]), "MISSING", observed[mismatch])
   )
-  stop("Frozen R environment mismatch:\n", paste(detail, collapse = "\n"))
+  stop("Unified R environment mismatch:\n", paste(detail, collapse = "\n"))
+}
+
+# The source marker distinguishes the pinned numerical implementation from the
+# upstream package with the same version number.
+marker <- file.path(find.package("lisi"), "BRAINOMICS_PINNED_SOURCE")
+expected_marker <- readLines(file.path(repo_root, "environment", "lisi", "LISI_PINNED_SOURCE"))
+if (!file.exists(marker) || !identical(readLines(marker), expected_marker)) {
+  stop("The installed LISI source/patch marker does not match the repository pin")
 }
 
 cat(
-  "Frozen ", profile, " R environment verified for ",
-  nrow(packages), " packages\n",
+  "R 4.5.1 environment is ready (", nrow(packages), " packages)\n",
   sep = ""
 )
