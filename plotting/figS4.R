@@ -19,5 +19,6 @@ if (status != 0L) stop("Supplementary Figure S4 source generation failed")
 if (!file.copy(file.path(out, "figS4.pdf"), "figures/figS4.pdf", overwrite=TRUE))
   stop("Could not copy Supplementary Figure S4 PDF")
 source("functions/export_png.R")
-# 425 dpi at the 240 mm source canvas gives 600 dpi at 170 mm placement.
-export_pdf_png("figures/figS4.pdf", "figures/figS4.png", 170/25.4, min_dpi=ceiling(600*170/240))
+# Use the measured PDF width to guarantee 600 dpi at 170 mm placement.
+export_pdf_png("figures/figS4.pdf", "figures/figS4.png", 170/25.4,
+               min_dpi=ceiling(600*170/240), min_effective_dpi=600L)

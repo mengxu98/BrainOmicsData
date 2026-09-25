@@ -66,7 +66,19 @@ software setup. The commands above execute the software tests. The synthetic
 tests do not reconstruct the full atlas or train scVI; full-data analyses
 require the source datasets and prepared inputs described in this guide.
 
-## Age evaluation and donor structure
+## Analysis preparation
+
+The numbered workflow and the standalone analysis commands have separate
+entry points. Stage 10 consumes prepared metadata, annotations, embeddings and
+summary tables. Prepare the required outputs before running that stage; the
+numbered workflow does not automatically execute every analysis below.
+The figure table in [Figures](#figures) lists the inputs for each plot.
+
+The following sections describe age evaluation, integration sensitivity and
+gene-expression reuse. Their commands perform analysis; use the figure entry
+points when only redrawing existing results.
+
+### Age evaluation and donor structure
 
 `analysis/evaluate_current_age_and_donor_structure.R` reads the four
 50-dimensional representations, metadata, and canonical donor identities from
@@ -98,7 +110,7 @@ Rscript --vanilla analysis/age_from_centroids.R \
 This writes predictions, fold coverage, study-level and overall age metrics,
 and donor-distance correlations from the supplied centroids.
 
-## LISI and clustering sensitivity
+### LISI and clustering sensitivity
 
 The LISI calculation and finalizer are
 `analysis/sensitivity/metrics_full_lisi.R` and
@@ -123,25 +135,138 @@ settings, input requirements, execution commands, and a check of the saved
 overlap counts. This sensitivity analysis varies clustering seed and resolution
 on a fixed graph; it does not vary integration or graph construction.
 
-## Figures
+### Gene-expression reuse
 
-`BRAINOMICS_ANALYSIS_DIR` selects the analysis tree used by the figure scripts.
+This analysis queries the 11 prespecified genes across 22 source datasets and
+prepares the expression summaries and paired contrasts used in Figure 5.
+It requires the processed source objects, cell-level metadata, adopted cluster
+annotation and existing S15 prefrontal-cortex donor pseudobulk inputs.
 
-Figure 5: see [`analysis/fig5_README.md`](../analysis/fig5_README.md).
-`BRAINOMICS_FIG5_PANEL_DIR` selects the 22-source extraction used to build the
-plotting tables. Redrawing from those tables is separate from extracting the
-11-gene panel from the 22 processed source objects.
-
-Figure S3: `functions/figS3_source.R` implements the cell-type drawing workflow
-with repository helpers.
-`Rscript plotting/figS3.R --redraw` draws from the analysis inputs; the default
-exports PNG from the corresponding PDF.
-
-Figure S4: the UMAP style is defined in `functions/umap_style.R`. Run:
+To extract the genes from every source, aggregate the outputs and draw the
+figure, run:
 
 ```sh
-Rscript --vanilla plotting/figS4.R
+bash analysis/fig5_rebuild.sh
 ```
 
-Figure rendering requires the corresponding analysis inputs and plotting
-packages.
+The wrapper runs `analysis/fig5_extract_full_panel.R` once per source, then
+`analysis/fig5_prepare_sources.R`, followed by `plotting/fig5.R`. This is a
+standalone analysis command, not an automatic part of stage 10. If the four
+plotting tables already exist, stage 10 or `Rscript --vanilla plotting/fig5.R`
+redraws the figure directly.
+
+Input and output paths:
+
+| Environment variable | Default | Purpose |
+|---|---|---|
+| `BRAINOMICS_ANALYSIS_DIR` | `results/analysis_run` | Prepared metadata and fixed-context reuse tables |
+| `BRAINOMICS_METADATA_FILE` | discovered under the analysis directory | Cell-level metadata |
+| `BRAINOMICS_ANNOTATION_TABLE` | `results/annotation/cluster_annotation.tsv` | Adopted cluster annotation |
+| `BRAINOMICS_FIG5_FIXED_DIR` | discovered under the analysis directory | S15 prefrontal-cortex donor tables |
+| `BRAINOMICS_PROCESSED_DIR` | `<repository>/../../data/BrainOmicsData/processed` | Processed objects for all sources |
+| `BRAINOMICS_FIG5_PANEL_DIR` | `results/fig5_full_panel` | Per-dataset 11-gene extraction and source coverage |
+| `BRAINOMICS_FIG5_SOURCE_DIR` | `figures` | Summary and four plotting tables |
+| `BRAINOMICS_FIG5_OUTPUT_DIR` | `figures` | Panel PDFs and assembled figure |
+
+`analysis/fig5_extract_full_panel.R` reads each source's raw RNA counts and canonical
+feature crosswalk. It groups cells by source, canonical donor, age interval,
+standardized brain region and adopted cell type, retaining unmeasured genes as
+missing rather than zero. Every source cell must be covered exactly once.
+Groups require at least 20 cells and 1,000 library counts. The 11 genes are
+the prespecified reuse panel in the manuscript.
+
+`analysis/fig5_prepare_sources.R` checks all 22 source-coverage files and 2,602,031 covered
+cells. For A it sums pseudobulk within donor and cell type, averages eligible
+donors within source, then weights sources equally for each gene/cell type;
+each gene is Z-scored across the 12 types. A reports detection separately.
+For B it pairs oligodendrocytes and microglia within source, canonical donor,
+age interval and brain region. Multiple matched contexts are averaged within
+donor, then donors within source. Sources with at least two paired donors
+enter the plot. The point/interval summary is the source-equal mean and a
+descriptive 95% t interval across source means. The separate two-sided exact
+sign test uses the *direction* of each nonzero source mean, with BH correction
+across all 11 genes. Its q values are not derived from the t intervals.
+
+For C the prepare script rebuilds paired donor contrasts from the S15
+prefrontal-cortex `fixed_panel_donor_counts.tsv.gz` and
+`donor_type_eligibility.tsv` inputs. When `paired_ol_micro_donors.tsv` is present, it verifies the
+recomputed 440 contrasts and copies the original table formatting. The donor
+pseudobulk counts remain a required upstream analysis input. C shows 33 ROSMAP
+and 7 SomaMut donors, with raw donor values, per-source interquartile ranges
+and per-source means. C is descriptive and has no new significance test.
+
+The four inputs to `plotting/fig5.R` are
+`fig5_full_gene_type_source.tsv`, `fig5_full_paired_study_source.tsv`,
+`fig5_full_direction_statistics.tsv`, and
+`fig5_fixed_paired_donor_source.tsv` in the source directory. The extractor
+also writes per-source coverage summaries, and the preparer writes intermediate tables.
+Source objects and generated analysis tables stay outside Git; the analysis
+and plotting scripts are versioned.
+
+## Figures
+
+Stage 10 runs the figure entry points in manuscript order: Figures 1–5,
+then Supplementary Figures S1–S4. It uses prepared analysis outputs; it does
+not rerun integration or statistical evaluation. Each entry point exports a
+numbered PDF, PNG and LZW-compressed TIFF under `figures/`. Raster resolution
+is selected for the manuscript placement width by `functions/export_png.R`.
+Only the light and dark Figure 1 SVGs are tracked for GitHub display.
+
+`BRAINOMICS_ANALYSIS_DIR` selects the analysis tree. The other input overrides
+are listed in the repository README.
+
+| Figure | Entry point | Panels in reading order | Prepared inputs |
+|---|---|---|---|
+| 1 | `plotting/fig1.R` | A: resource composition; B: reported age coverage; C: processing workflow | Resource summary and age-coverage tables |
+| 2 | `plotting/fig2.R` | A: four-method UMAPs; B: dataset iLISI; C: source-label cLISI; D: donor geometry; E: age prediction; F: RPCA clusters and cell types | Four saved UMAP embeddings, evaluation tables, metadata and annotation |
+| 3 | `plotting/fig3.R` | A: cluster markers; B: cell-type markers; C: source-label concordance | Marker evidence, annotation and source-concordance tables |
+| 4 | `plotting/fig4.R` | A: original query labels; B: transferred labels; C: label correspondence; D: donor agreement | Prepared query-mapping tables under `tables/egad_mapping/` |
+| 5 | `plotting/fig5.R` | A: gene expression and detection; B: paired source contrasts; C: S15 prefrontal-cortex donor contrasts | Four prepared tables from [gene-expression reuse](#gene-expression-reuse) |
+| S1 | `plotting/figS1.R` | Age-interval UMAP | Cell metadata, age summaries and RPCA UMAP |
+| S2 | `plotting/figS2.R` | Brain-region UMAP | Cell metadata, region summaries and RPCA UMAP |
+| S3 | `plotting/figS3.R --redraw` | Separate UMAPs for the 12 cell types | Metadata, annotation and RPCA UMAP |
+| S4 | `plotting/figS4.R` | Feature plots for the 33 markers | Retained marker counts, library sizes, marker list, metadata and RPCA UMAP |
+
+### Figure 2: panels A–F
+
+- **A:** `plotting/fig2a.R` draws dataset-labelled UMAPs in Raw, scVI,
+  Harmony and RPCA order, each with 2,602,031 cells and a 22-dataset legend.
+  It reads `embedding_umap.unintegrated.rds`, `embedding_umap.scvi.rds`,
+  `embedding_umap.harmony.rds` and `embedding_umap.rpca.rds`, plus
+  `core_metadata_minimal.tsv.gz`. Each coordinate matrix must contain exactly
+  the same ordered cell IDs as the metadata, two columns and finite values.
+  These are existing analysis outputs; the script does not fit UMAP.
+- **B:** dataset iLISI uses the `latent50` / `Dataset` rows of
+  `tables/full_lisi_dataset_summary.tsv`.
+- **C:** source-label cLISI uses the `latent50` / `Source_Full` rows of the
+  same table. Each scheme contains 22 sources × 4 methods. This table is
+  produced upstream by `analysis/sensitivity/metrics_finalize_lisi.R`.
+- **D:** donor geometry uses `tables/age_signal/donor_structure_by_dataset.tsv`.
+- **E:** age prediction uses `tables/age_signal/age_metrics_summary.tsv` and
+  `tables/age_signal/age_metrics_by_dataset.tsv`.
+- **F:** `plotting/fig2_umap_panels.R` draws the RPCA cluster UMAP on the left
+  and cell-type UMAP on the right. Both plots belong to panel F; there is no
+  panel G. Cluster legends follow numeric order, C0–C74; cell types follow
+  the shared order in `functions/utils.R`.
+
+The statistical tables are resolved under `BRAINOMICS_FIGURE_DATA_DIR` and
+checked before any Figure 2 panel is drawn or written. The full LISI summary
+is required; an older UMAP summary cannot substitute for it.
+
+The four coordinate files are resolved under `BRAINOMICS_ANALYSIS_DIR`, or
+selected explicitly with `BRAINOMICS_RAW_UMAP_FILE`,
+`BRAINOMICS_SCVI_UMAP_FILE`, `BRAINOMICS_HARMONY_UMAP_FILE` and
+`BRAINOMICS_RPCA_UMAP_FILE`. Stage 10 redraws all panels A–F; a pre-existing
+`fig2a.pdf` is no longer required. A fresh clone still needs the prepared
+analysis inputs, which are outside version control.
+
+### Supplementary figure redraws
+
+S1 and S2 redraw from metadata and the RPCA embedding. Stage 10 passes
+`--redraw` to S3; without that option, its standalone entry point only exports
+raster images from the existing PDF. S4 draws all 33 markers from retained
+counts, using `functions/figS4_source.R` and `functions/umap_style.R`.
+
+Figure rendering requires the corresponding prepared inputs and plotting
+packages. Missing inputs must be supplied before drawing; the figure stage
+does not launch upstream analysis to replace them.

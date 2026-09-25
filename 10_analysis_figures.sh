@@ -18,10 +18,6 @@ fi
 
 check_command "$BRAINOMICS_RSCRIPT"
 
-# Figure 2A currently requires its retained panel; the remaining entry points
-# redraw their panels from the analysis inputs.
-brainomics_require_file "$BRAINOMICS_REPO_ROOT/figures/fig2a.pdf"
-
 # Figures 1-5 and S1-S4 use the same selected R environment.
 "$BRAINOMICS_RSCRIPT" --vanilla plotting/fig1.R
 "$BRAINOMICS_RSCRIPT" --vanilla plotting/fig2.R

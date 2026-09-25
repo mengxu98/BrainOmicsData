@@ -37,9 +37,11 @@ The numbered drivers run from the repository root. The default analysis workflow
 
 The numbered stages use the downloaded source datasets together with prepared
 analysis inputs. Stage 04 uses cell/gene mappings and source-selection policies;
-stage 10 reads the analysis metadata, statistical tables and `figures/fig2a.pdf`;
+stage 10 reads the analysis metadata, statistical tables and saved UMAP coordinates;
 stage 11 reads the expression and annotation trees. Their locations can be set
-with the environment variables listed below.
+with the environment variables listed below. Figure 2 uses the saved UMAP
+coordinates for all four methods; the panel-to-input mapping is described in
+the [reproducibility guide](environment/REPRODUCIBILITY.md#figures).
 
 ### Environment
 
@@ -72,30 +74,15 @@ The restore entry targets Linux x86_64 and requires micromamba. Its platform pre
 | `data/` | Source access table, donor crosswalks, feature metadata |
 | `tests/` | Workflow tests and package contract checks |
 
-The manuscript figure entry points are `plotting/fig1.R` through
-`plotting/fig5.R` and `plotting/figS1.R` through `plotting/figS4.R`. Each writes a
-matching 600 dpi or higher PNG under `figures/`. Active panel PDFs use only
-their panel identifiers (`fig1a.pdf`, `fig2f.pdf`, and so on); vector copies
-and source tables remain in the same directory.
-Figure 5's complete 22-source extraction, aggregation, source-level sign test,
-fixed-context input, and panel assembly are documented in
-[`analysis/fig5_README.md`](analysis/fig5_README.md). Run
-`bash analysis/fig5_rebuild.sh` where the complete 22-source inputs are available
-to regenerate its source tables and final figure; stage 10 redraws from the
-source tables.
-`plotting/` contains only figure-numbered
-R scripts; shared configuration, panel assembly and other plotting support
-scripts live under `functions/`. The S1 age-interval and S2 brain-region entry
-points redraw their PDFs from the 2,602,031-cell metadata and RPCA embedding
-before exporting PNGs.
-The S3 entry point exports PNG from its PDF and accepts `--redraw` to draw the PDF from the analysis inputs using
-`functions/figS3_source.R`.
-S4 shows all 33 markers in the adopted list, with all 2,602,031 cells in each
-FeatureDimPlot. Its complete drawing code is in `functions/figS4_source.R`;
-`plotting/figS4.R` reads the full analysis inputs and exports the numbered PDF
-and 600 dpi PNG.
+Analysis preparation, input requirements and plotting commands are documented
+in the [reproducibility guide](environment/REPRODUCIBILITY.md).
+[Analysis preparation](environment/REPRODUCIBILITY.md#analysis-preparation)
+describes the standalone analyses that supply stage 10;
+[Figures](environment/REPRODUCIBILITY.md#figures) lists the drawing entry points
+in order, from Figures 1–5 to S1–S4. Each exports PDF, PNG and LZW-compressed
+TIFF under `figures/`. Shared plotting helpers live under `functions/`.
 
-Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-11 inputs), `annotation/`, `run_root/` (stage-04 inputs and outputs) and `work/` (stage-11 work directory). `results/`, `figures/` (except the light and dark Figure 1 SVGs) and the manuscript folders are outside version control. PNG exports remain local for manuscript preparation; GitHub displays the corresponding SVG for the reader's color theme.
+Local analysis inputs live under `results/`: `analysis_run/` (figure inputs), `frozen_run/` (stage-11 inputs), `annotation/`, `run_root/` (stage-04 inputs and outputs) and `work/` (stage-11 work directory). `results/`, `figures/` (except the light and dark Figure 1 SVGs) and the manuscript folders are outside version control. PNG and TIFF exports remain local for manuscript preparation; GitHub displays the corresponding SVG for the reader's color theme.
 
 Analysis modules that use the logical name `integration_25` resolve it through
 `BRAINOMICS_RESULTS_DIR`. Figures and annotation use the 2,602,031-cell inputs
@@ -113,7 +100,10 @@ under `results/analysis_run/` and `results/annotation/`.
 | `BRAINOMICS_ANALYSIS_RUN_DIR` | Directory containing `01_metadata/metadata_working.rds` | 10 |
 | `BRAINOMICS_FIGURE_DATA_DIR` | Directory containing the figure summary tables | 10 |
 | `BRAINOMICS_REFERENCE_SUMMARY` | Figure 1 resource-summary directory | 10 |
-| `BRAINOMICS_FIG2_METADATA_FILE` | Cell and cluster table used by Figure 2A | 10 |
+| `BRAINOMICS_FIG2_METADATA_FILE` | Cell, dataset and cluster table used by Figures 2A and 2F | 10 |
+| `BRAINOMICS_RAW_UMAP_FILE` | Saved Raw PCA UMAP coordinates for Figure 2A | 10 |
+| `BRAINOMICS_SCVI_UMAP_FILE` | Saved scVI UMAP coordinates for Figure 2A | 10 |
+| `BRAINOMICS_HARMONY_UMAP_FILE` | Saved Harmony UMAP coordinates for Figure 2A | 10 |
 | `BRAINOMICS_RPCA_UMAP_FILE` | RPCA UMAP coordinates used by Figures 2 and S1–S3 | 10 |
 | `BRAINOMICS_METADATA_FILE` | Cell-level analysis metadata | 11 and standalone analyses |
 | `BRAINOMICS_ANNOTATION_TABLE` | Adopted 75-cluster annotation used by analyses and figures | 10 |

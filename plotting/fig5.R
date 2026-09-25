@@ -8,10 +8,7 @@ source('functions/utils.R')
 
 genes <- c('PPP4R2','GXYLT2','KCNJ3','SMCHD1','CTSD','MRPL23',
            'FHIT','SLC10A7','KLHDC4','DACT1','DAAM1')
-types <- c('Astrocytes','Endothelial cells','Mural cells','Fibroblasts',
-           'Excitatory neurons','Inhibitory neurons','Microglia','Lymphocytes',
-           'Neural progenitors','Differentiating oligodendrocytes',
-           'Oligodendrocyte progenitor cells','Oligodendrocytes')
+types <- names(brainomics_celltype_colors)
 type_labels <- setNames(types,types)
 
 source_dir <- Sys.getenv('BRAINOMICS_FIG5_SOURCE_DIR','figures')
@@ -152,5 +149,5 @@ export_checked <- function(command,args) {
 }
 export_checked('pdftocairo',c('-svg',shQuote(assembled),
                               shQuote(file.path(out,'fig5.svg'))))
-export_checked('pdftoppm',c('-f','1','-singlefile','-r','600','-png',
-                           shQuote(assembled),shQuote(file.path(out,'fig5'))))
+source('functions/export_png.R')
+export_pdf_png(assembled, file.path(out,'fig5.png'), 196/25.4)

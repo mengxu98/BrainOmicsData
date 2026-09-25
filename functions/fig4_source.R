@@ -19,7 +19,7 @@ stopifnot(all(d$Predicted_CellType %in% names(brainomics_celltype_colors)),uniqu
 # Source names are display-only harmonizations; coordinates and votes are unchanged.
 rename<-c('Neuron'='Neurons','Neuroblast'='Neuroblasts','Neuronal IPC'='Neuronal intermediate progenitor cells','Glioblast'='Glioblasts','Oligo'='Oligodendrocyte lineage','Immune'='Immune cells','Vascular'='Vascular cells','Fibroblast'='Perivascular fibroblasts','Erythrocyte'='Erythrocytes')
 d[Source_Label%in%names(rename),Source_Label:=unname(rename[Source_Label])]
-# Reuse Fig. 2G's CellDimPlot rendering and final-size arrow-axis theme.
+# Reuse Fig. 2F's CellDimPlot rendering and final-size arrow-axis theme.
 suppressPackageStartupMessages({library(SeuratObject);library(scop)})
 qcolors<-brainomics_query_celltype_colors
 rcolors<-c(brainomics_celltype_colors,'Not mapped (no counts)'='#999999',
@@ -207,13 +207,13 @@ p_donor <- ggplot(summary_stats, aes(y = Source_Label)) +
                 orientation = "y", width = 0.28, linewidth = 0.45) +
   geom_point(aes(x = Mean, fill = Source_Label),
              shape = 23, size = 2.3, colour = "#1A1A1A", stroke = 0.4) +
-  geom_text(aes(x = 1.04, label = RightLabel),
+  geom_text(aes(x = 1.10, label = RightLabel),
             hjust = 0, size = 2.05, family = "Arial", colour = "#2A2A2A") +
   scale_fill_manual(values = qcolors, guide = "none") +
   scale_colour_manual(values = qcolors, guide = "none") +
   scale_x_continuous(breaks = c(0, 0.5, 1.0),
                      labels = c("0%", "50%", "100%"),
-                     limits = c(-0.03, 1.38),
+                     limits = c(-0.03, 1.70),
                      expand = c(0, 0)) +
   scale_y_discrete(labels = y_label_map, expand = expansion(add = 0.55)) +
   labs(x = "Donor concordance", y = NULL,

@@ -29,6 +29,10 @@ celltype_order <- names(brainomics_celltype_colors)
 celltype_colors <- brainomics_celltype_colors
 
 cells <- as.character(umap$Cell)
+# Sort cluster labels numerically while preserving their existing colors.
+cluster_color_order <- sort(unique(as.character(assignments$Cluster)))
+stopifnot(all(grepl("^C[0-9]+$", cluster_color_order)))
+cluster_order <- cluster_color_order[order(as.integer(sub("^C", "", cluster_color_order)))]
 counts <- sparseMatrix(
   i = integer(), j = integer(), x = numeric(),
   dims = c(2L, length(cells)),
@@ -36,7 +40,7 @@ counts <- sparseMatrix(
 )
 plot_metadata <- data.frame(
   CellType = factor(display_celltype, levels = celltype_order),
-  Cluster = factor(assignments$Cluster, levels = sort(unique(assignments$Cluster))),
+  Cluster = factor(assignments$Cluster, levels = cluster_order),
   row.names = cells
 )
 object <- CreateSeuratObject(
@@ -69,7 +73,8 @@ if (!four_method_only) {
 
 if (!four_method_only) {
   cluster_levels <- levels(object$Cluster)
-  cluster_colors <- setNames(grDevices::hcl.colors(length(cluster_levels), "Dynamic"), cluster_levels)
+  cluster_colors <- setNames(grDevices::hcl.colors(length(cluster_color_order), "Dynamic"), cluster_color_order)
+  cluster_colors <- cluster_colors[cluster_levels]
   p_cluster <- scop::CellDimPlot(object, reduction = "umap.rpca", group.by = "Cluster",
     palcolor = cluster_colors, label = FALSE, seed = 11, show_stat = FALSE,
     raster = TRUE, raster.dpi = c(1600, 1600), pt.size = 2,
