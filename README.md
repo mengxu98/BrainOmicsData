@@ -9,7 +9,7 @@ Version 2 is published at ScienceDB under the existing DOI [10.57760/sciencedb.4
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="figures/fig1-night.svg">
   <source media="(prefers-color-scheme: light)" srcset="figures/fig1.svg">
-  <img alt="Overview of the integrated human brain atlas" src="figures/fig1.svg">
+  <img alt="Overview of the integrated human brain atlas" src="figures/fig1.svg" width="100%">
 </picture>
 
 ## Pipeline
