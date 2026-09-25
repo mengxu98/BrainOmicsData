@@ -217,12 +217,10 @@ p_donor <- ggplot(summary_stats, aes(y = Source_Label)) +
                      expand = c(0, 0)) +
   scale_y_discrete(labels = y_label_map, expand = expansion(add = 0.55)) +
   labs(x = "Donor concordance", y = NULL,
-       title = "Donor concordance (605,701 cells from 26 donors)",
-       subtitle = "Donor-equal mean (diamond) ± 95% CI") +
+       title = "Donor concordance (605,701 cells from 26 donors)") +
   theme_classic(base_family = "Arial", base_size = 6) +
   theme(
     plot.title = element_text(size = 6.2, face = "plain", colour = "#1A1A1A", margin = margin(b = 1)),
-    plot.subtitle = element_text(size = 5.0, colour = "#555555", margin = margin(b = 2)),
     axis.text.y = element_text(size = 5.3, colour = "#222222"),
     axis.text.x = element_text(size = 5.4, colour = "#222222"),
     axis.title.x = element_text(size = 5.8, colour = "#222222"),
