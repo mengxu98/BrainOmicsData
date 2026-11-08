@@ -38,8 +38,9 @@ fig2_widths <- c(176, rep(41, 4), 176)
 fig2_heights <- measure_panel_heights(fig2_sources, fig2_widths)
 fig2_row_heights <- c(fig2_heights[1], max(fig2_heights[2:5]),
                       fig2_heights[6])
-fig2_height <- sum(fig2_row_heights) + 2 * gap + 10
-fig2_tops <- fig2_height - 5 - c(0, cumsum(head(fig2_row_heights, -1) + gap))
+fig2_gaps <- c(5, 1.5)
+fig2_height <- sum(fig2_row_heights) + sum(fig2_gaps) + 10
+fig2_tops <- fig2_height - 5 - c(0, cumsum(head(fig2_row_heights, -1) + fig2_gaps))
 fig2_x <- c(7, 7, 52, 97, 142, 7)
 fig2_y <- fig2_tops[c(1, 2, 2, 2, 2, 3)]
 assemble_pdf_figure("fig2", c(187, fig2_height),

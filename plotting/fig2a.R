@@ -48,21 +48,41 @@ for (i in seq_along(method_levels)) {
   p <- order_dim_plot_cells(p, draw_order)
   stopifnot(identical(rownames(p$data), draw_order))
   p$layers <- Filter(function(layer) !inherits(layer$geom, "GeomCustomAnn"), p$layers)
-  plots[[i]] <- p + theme_blank_axis(lab_size = 5, axis_lwd = .6) +
-    p$coordinates + labs(title = method, subtitle = paste0("nCells:", length(cells))) +
-    theme(text = element_text(family = "Arial", size = 6),
-      plot.title = element_text(size = 6, face = "bold"),
-      plot.subtitle = element_text(size = 5),
-      legend.text = element_text(size = 5), legend.title = element_text(size = 5.5),
-      legend.key.height = grid::unit(2.3, "mm"),
-      legend.key.width = grid::unit(2, "mm"),
-      plot.margin = margin(1, 1, 1, 1, unit = "mm")) +
-    guides(colour = guide_legend(ncol = 2, byrow = FALSE,
-      override.aes = list(size = 1.1)))
+  plots[[i]] <- p + theme_void() + labs(title = NULL, subtitle = NULL, x = NULL, y = NULL) +
+    theme(legend.position = "none", plot.margin = margin(0, 0, 0, 0))
   message("Figure 2A coordinates checked: ", method, " / ", length(cells), " cells")
 }
-panel <- wrap_plots(c(plots, list(guide_area())), nrow = 1,
-                   widths = c(1, 1, 1, 1, 2.1), guides = "collect")
 dir.create("figures", recursive = TRUE, showWarnings = FALSE)
-ggsave("figures/fig2a.pdf", panel, device = cairo_pdf,
-       width = 176, height = 37, units = "mm", family = "Arial", bg = "white")
+grDevices::cairo_pdf("figures/fig2a.pdf", width = 176 / 25.4, height = 68 / 25.4, family = "Arial")
+grid::grid.newpage()
+for (i in seq_along(method_levels)) {
+  x <- (i - .5) / 4
+  print(plots[[i]], newpage = FALSE, vp = grid::viewport(x = x, y = grid::unit(42.5, "mm"),
+    width = grid::unit(39, "mm"), height = grid::unit(39 * 63.424983 / 74.328693, "mm")))
+  grid::grid.text(method_levels[i], x = x, y = grid::unit(65, "mm"),
+    gp = grid::gpar(fontfamily = "Arial", fontsize = 8, fontface = "bold"))
+  x0 <- (i - 1) * 44 + 2
+  grid::grid.lines(grid::unit(c(x0, x0 + 5), "mm"), grid::unit(c(26.5, 26.5), "mm"),
+    arrow = grid::arrow(length = grid::unit(1, "mm")), gp = grid::gpar(lwd = .6))
+  grid::grid.lines(grid::unit(c(x0, x0), "mm"), grid::unit(c(26.5, 31.5), "mm"),
+    arrow = grid::arrow(length = grid::unit(1, "mm")), gp = grid::gpar(lwd = .6))
+  grid::grid.text("UMAP_1", grid::unit(x0, "mm"), grid::unit(24.5, "mm"), just = "left",
+    gp = grid::gpar(fontfamily = "Arial", fontsize = 5.8))
+  grid::grid.text("UMAP_2", grid::unit(x0 - 1.5, "mm"), grid::unit(28.5, "mm"), rot = 90,
+    gp = grid::gpar(fontfamily = "Arial", fontsize = 5.8))
+}
+grid::grid.text(paste0("n = ", format(length(cells), big.mark = ",", scientific = FALSE), " cells"),
+  x = .125, y = grid::unit(60.5, "mm"), gp = grid::gpar(fontfamily = "Arial", fontsize = 6.4, col = "#444444"))
+grid::grid.text("Dataset (cells)", grid::unit(2, "mm"), grid::unit(18.5, "mm"), just = "left",
+  gp = grid::gpar(fontfamily = "Arial", fontsize = 6.2, fontface = "bold"))
+counts <- table(factor(metadata$Dataset, levels = datasets))
+for (i in seq_along(datasets)) {
+  x <- (i %/% 6) * 44 + 2
+  y <- 18.5 - (i %% 6) * 3.2
+  grid::grid.points(grid::unit(x, "mm"), grid::unit(y, "mm"), pch = 16,
+    size = grid::unit(1.6, "mm"), gp = grid::gpar(col = dataset_colors[datasets[i]]))
+  label <- paste0(datasets[i], " (", format(counts[i], big.mark = ",", scientific = FALSE, trim = TRUE), ")")
+  grid::grid.text(label, grid::unit(x + 2, "mm"), grid::unit(y, "mm"), just = "left",
+    gp = grid::gpar(fontfamily = "Arial", fontsize = 5.9))
+}
+grDevices::dev.off()

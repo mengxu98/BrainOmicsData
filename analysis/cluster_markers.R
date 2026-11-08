@@ -18,7 +18,7 @@ assignment_column <- "Cluster"
 output_dir <- file.path(annotation_dir, "markers")
 checkpoint_dir <- file.path(output_dir, "dataset_checkpoints")
 dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
-object_file <- file.path(integration_dir, "objects_merged.rds")
+object_file <- file.path(integration_dir, "objects_filtered.rds")
 feature_file <- file.path(annotation_dir, "rna_features.tsv.gz")
 normalization_scale <- 10000
 minimum_cluster_cells_per_dataset <- 20L

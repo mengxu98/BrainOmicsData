@@ -29,13 +29,36 @@ write_tsv <- function(x, path) {
 }
 
 # Keep point order fixed across annotation plots.
+restrict_reference_labels <- function(candidate, query_in_scope = NULL) {
+  crosswalk <- c(
+    "Excitatory neurons" = "Neuron", "Inhibitory neurons" = "Neuron",
+    "Microglia" = "Immune", "Lymphocytes" = "Immune",
+    "Endothelial cells" = "Vascular", "Mural cells" = "Vascular",
+    "Fibroblasts" = "Fibroblast",
+    "Oligodendrocyte progenitor cells" = "Oligodendrocyte lineage",
+    "Differentiating oligodendrocytes" = "Oligodendrocyte lineage",
+    "Oligodendrocytes" = "Oligodendrocyte lineage"
+  )
+  if (is.null(query_in_scope)) query_in_scope <- rep(NA, length(candidate))
+  stopifnot(is.logical(query_in_scope), length(query_in_scope) == length(candidate))
+  broad <- unname(crosswalk[as.character(candidate)])
+  status <- rep("scope_not_confirmed", length(candidate))
+  status[!is.na(query_in_scope) & !query_in_scope] <- "outside_demonstrated_scope"
+  eligible <- !is.na(query_in_scope) & query_in_scope
+  status[eligible & is.na(broad)] <- "unsupported_reference_assignment"
+  status[eligible & !is.na(broad)] <- "within_demonstrated_scope"
+  broad[status != "within_demonstrated_scope"] <- NA_character_
+  data.frame(Prediction = broad, Mapping_Status = status, stringsAsFactors = FALSE)
+}
+
 reference_knn_projection <- function(
   query,
   reference,
   coordinates,
   labels = NULL,
   index = NULL,
-  k = 30L
+  k = 30L,
+  query_in_scope = NULL
 ) {
   stopifnot(
     ncol(query) == ncol(reference),
@@ -77,9 +100,12 @@ reference_knn_projection <- function(
     best <- max.col(votes, ties.method = "first")
     support <- votes[cbind(seq_len(nrow(votes)), best)]
     votes[cbind(seq_len(nrow(votes)), best)] <- -Inf
-    result$Prediction <- levels[best]
+    result$Candidate_Prediction <- levels[best]
     result$Support <- support
     result$Margin <- support - apply(votes, 1L, max)
+    restricted <- restrict_reference_labels(result$Candidate_Prediction, query_in_scope)
+    result$Prediction <- restricted$Prediction
+    result$Mapping_Status <- restricted$Mapping_Status
   }
   result
 }
@@ -274,12 +300,80 @@ celltype_summary_group_heatmap <- function(summary, marker_spec, type_levels, fl
     as.numeric(expected),
     tolerance = 1e-7
   )))
+  if (flip) {
+    scale_mm <- 78 / (410 / 72 * 25.4)
+    cell_width <- (5.4 * 25.4 - (length(marker_levels) - 1) * .3) / length(genes) * scale_mm
+    gap <- .3 * scale_mm
+    group_index <- match(as.character(marker_spec$Marker_Group), marker_levels)
+    left <- 34 + (270.773 - 132 - 120) * 78 / 410
+    x <- left + (seq_along(genes) - .5) * cell_width + (group_index - 1) * gap
+    row_height <- 133.199 / length(type_levels) * 78 / 410 * 1.22
+    top <- 19 + (312 - (108 + (109 - 108) * 1.22) - 38) * 78 / 410
+    y <- top - (seq_along(type_levels) - .5) * row_height
+    limit <- ceiling(min(abs(stats::quantile(expected, c(.01, .99)))) * 2) / 2
+    if (!is.finite(limit) || limit <= 0) limit <- 2
+    color_fun <- circlize::colorRamp2(seq(-limit, limit, length.out = 100),
+      get("palette_colors", envir = environment(scop::GroupHeatmap))(palette = "Spectral"))
+    elements <- list()
+    add <- function(grob) elements[[length(elements) + 1L]] <<- grob
+    mm <- function(value) grid::unit(value, "mm")
+    text <- function(label, x, y, size = 6.1, ...) grid::textGrob(label,
+      x = mm(x), y = mm(y), gp = grid::gpar(fontfamily = "Arial", fontsize = size), ...)
+    for (group in seq_along(marker_levels)) {
+      at <- which(group_index == group)
+      center <- mean(range(x[at]))
+      width <- length(at) * cell_width
+      add(grid::rectGrob(mm(center), mm(top - length(type_levels) * row_height / 2),
+        mm(width), mm(length(type_levels) * row_height),
+        gp = grid::gpar(fill = "white", col = "grey", lwd = .5 * scale_mm)))
+      add(grid::rectGrob(mm(center), mm(19 + (312 - 102.5645 - 38) * 78 / 410),
+        mm(width), mm(7.199 * 78 / 410),
+        gp = grid::gpar(fill = brainomics_celltype_colors[marker_levels[group]], col = NA)))
+    }
+    add(grid::rectGrob(mm(34 + (253.766 - 132 - 120 + 14.172 / 2) * 78 / 410),
+      mm(y), mm(14.172 * 78 / 410), mm(row_height),
+      gp = grid::gpar(fill = brainomics_celltype_colors[type_levels], col = NA)))
+    index <- which(fraction > 0, arr.ind = TRUE)
+    add(grid::pointsGrob(mm(x[index[, 1]]), mm(y[index[, 2]]), pch = 21,
+      size = mm(5 * scale_mm * fraction[index]),
+      gp = grid::gpar(fill = color_fun(expected[index]), col = "black", lwd = .6 * scale_mm)))
+    add(text(type_levels, 33, y, just = "right"))
+    gene_labels <- grid::textGrob(genes, mm(x), mm(18.5), rot = 90, just = "right",
+      gp = grid::gpar(fontfamily = "Arial", fontsize = 6.1, fontface = "italic"))
+    add(gene_labels)
+    text_width <- function(label) grid::convertWidth(grid::grobWidth(text(label, 0, 0, 6)), "mm", valueOnly = TRUE)
+    z_width <- text_width("Z-score"); p_width <- text_width("Percent")
+    legend_width <- z_width + 1.5 + 14 + 4 + p_width + 2.4 + 4 * 7.6 + 1.6 + text_width("100%")
+    legend_left <- 73 - legend_width / 2
+    bar_left <- legend_left + z_width + 1.5
+    percent_left <- bar_left + 18
+    first_dot <- percent_left + p_width + 2.4
+    add(grid::rasterGrob(as.raster(matrix(color_fun(seq(-limit, limit, length.out = 2048)), nrow = 1)),
+      mm(bar_left + 7), mm(4.5), mm(14), mm(2.3), interpolate = FALSE))
+    add(text("Z-score", legend_left, 4.5, 6, just = "left"))
+    for (i in seq_along(c(-1, 0, 1))) {
+      tick <- c(-1, 0, 1)[i]
+      at <- bar_left + (tick + limit) / (2 * limit) * 14
+      add(grid::segmentsGrob(mm(at), mm(3.35), mm(at), mm(2.85), gp = grid::gpar(lwd = .4)))
+      add(text(as.character(tick), at, 1.45, 5.6))
+    }
+    add(text("Percent", percent_left, 4.5, 6, just = "left"))
+    for (i in seq_len(5)) {
+      at <- first_dot + (i - 1) * 7.6
+      add(grid::pointsGrob(mm(at), mm(4.5), pch = 21, size = mm(5 * scale_mm * i / 5),
+        gp = grid::gpar(fill = "grey40", col = "black", lwd = .6 * scale_mm)))
+      add(text(paste0(i * 20, "%"), at + 1.6, 4.5, 6, just = "left"))
+    }
+    p$plot <- grid::gTree(children = do.call(grid::gList, elements),
+      vp = grid::viewport(width = mm(112), height = mm(60)))
+  }
   p
 }
 
 # Submission atlas CellType palette: 2,602,031 cells, 12 classes.
 read_celltype_assignments <- function(cells = NULL) {
-  path <- "results/annotation/celltype_assignments.rds"
+  directory <- Sys.getenv("BRAINOMICS_ANNOTATION_DIR", unset = file.path("results", "annotation"))
+  path <- file.path(directory, "celltype_assignments.rds")
   annotation <- as.data.frame(readRDS(path))
   stopifnot(
     identical(names(annotation), c("Cells", "Cluster", "CellType")),
@@ -289,7 +383,8 @@ read_celltype_assignments <- function(cells = NULL) {
     length(unique(annotation$Cluster)) == 75L,
     length(unique(annotation$CellType)) == 12L
   )
-  mapping <- read_tsv("results/annotation/cluster_annotation.tsv")
+  mapping <- read_tsv(Sys.getenv("BRAINOMICS_ANNOTATION_TABLE",
+    unset = file.path(directory, "cluster_annotation.tsv")))
   index <- match(annotation$Cluster, mapping$Cluster)
   stopifnot(
     nrow(mapping) == 75L,

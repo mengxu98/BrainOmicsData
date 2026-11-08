@@ -3,7 +3,7 @@
 suppressPackageStartupMessages({library(Seurat); library(jsonlite)})
 a <- commandArgs(TRUE); stopifnot(length(a) == 2L)
 run <- normalizePath(a[1]); stage <- a[2]
-stopifnot(stage %in% c('pca','rpca','harmony','raw_umap','collect'))
+stopifnot(stage %in% c('pca','rpca','harmony','raw_umap','collect','cluster'))
 Sys.setenv(BRAINOMICS_RUN_ROOT=run)
 script_file <- sub('^--file=', '', grep('^--file=', commandArgs(FALSE), value=TRUE)[1L])
 repo <- Sys.getenv('BRAINOMICS_REPO_ROOT', unset=dirname(dirname(normalizePath(script_file))))
@@ -48,7 +48,51 @@ make_umap <- function(embedding, key) {
           seed.use=seed, verbose=FALSE)
 }
 timing('start'); set.seed(seed)
-if(stage == 'pca') {
+if(stage == 'cluster') {
+  future::plan('sequential')
+  common <- readRDS(input); check_common(common)
+  result <- readRDS(file.path(cp,'rpca_reductions.rds'))
+  stopifnot(identical(result$contract,contract))
+  embedding <- Embeddings(result$reductions$integrated.rpca)
+  cells <- rownames(embedding)
+  stopifnot(identical(dim(embedding),c(2602031L,50L)),
+    identical(cells,rownames(common$pca)), !anyDuplicated(cells), all(is.finite(embedding)))
+  outputs <- file.path(out,c('rpca_knn_neighbor.rds','rpca_symmetric_weighted_knn_graph.rds',
+    'cluster_assignments.rds','cluster_sizes.tsv','clustering_contract.json'))
+  stopifnot(!any(file.exists(outputs)))
+  rm(common,result); gc()
+  k <- 20L; resolution <- 2
+  set.seed(seed)
+  neighbor <- Seurat::FindNeighbors(embedding,k.param=k,return.neighbor=TRUE,
+    compute.SNN=FALSE,nn.method='annoy',annoy.metric='euclidean',n.trees=50L,verbose=TRUE)
+  stopifnot(identical(dim(neighbor@nn.idx),c(length(cells),k)),
+    identical(neighbor@cell.names,cells),all(is.finite(neighbor@nn.dist)))
+  atomic_rds(neighbor,outputs[1L])
+  rm(embedding); gc()
+  idx <- neighbor@nn.idx; distance <- neighbor@nn.dist
+  scale <- pmax(distance[,k],.Machine$double.eps)
+  src <- rep(seq_len(nrow(idx)),each=k); dst <- as.integer(t(idx))
+  d <- as.numeric(t(distance)); s <- rep(scale,each=k); keep <- src!=dst
+  graph <- Matrix::sparseMatrix(i=src[keep],j=dst[keep],
+    x=exp(-((d[keep]/s[keep])^2)),dims=c(length(cells),length(cells)),dimnames=list(cells,cells))
+  rm(neighbor,idx,distance,scale,src,dst,d,s,keep); gc()
+  graph <- as(Matrix::drop0(graph+Matrix::t(graph)),'Graph')
+  stopifnot(isSymmetric(graph),all(is.finite(graph@x)),all(graph@x>0))
+  atomic_rds(graph,outputs[2L])
+  set.seed(seed)
+  partition <- FindClusters(graph,algorithm=1L,resolution=resolution,n.start=10L,
+    n.iter=10L,random.seed=seed,group.singletons=TRUE,verbose=TRUE)
+  labels <- paste0('C',as.character(partition[[1L]]))
+  stopifnot(length(labels)==length(cells),!anyNA(labels))
+  atomic_rds(data.frame(Cell=cells,Cluster=labels),outputs[3L])
+  write.table(as.data.frame(table(Cluster=labels)),outputs[4L],sep='\t',quote=FALSE,row.names=FALSE)
+  write_json(list(state='PASS',cells=length(cells),clusters=length(unique(labels)),
+    dimensions=50,k_neighbors=k,n_trees=50,metric='euclidean',
+    graph='symmetric adaptive Gaussian weighted kNN; reciprocal weights summed',
+    algorithm='Louvain (Seurat algorithm 1)',resolution=resolution,n_start=10,n_iter=10,
+    seed=seed,old_assignments_reused=FALSE,biological_annotation=FALSE,contract=contract),
+    outputs[5L],pretty=TRUE,auto_unbox=TRUE)
+} else if(stage == 'pca') {
   stopifnot(!file.exists(input), !file.exists(pca_file))
   object <- load_processed_object(file.path(cp,'objects_hvg.rds'))
   hvg <- object@misc$BrainOmics_Integration_Checkpoint

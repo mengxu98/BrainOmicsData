@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Bring an exported deposit package to the released structure.
+"""Normalize the structure and source-term descriptions of a local export.
 
-Every step below corresponds to a released change; running it on an already
-normalized package is a no-op apart from regenerating the checksums.
+Running it on an already normalized package is a no-op apart from
+regenerating the checksums.
 
 Usage: normalize_package.py PACKAGE_DIR
 """
@@ -62,7 +62,10 @@ def write_tsv(path, columns, rows):
 def manifest_attributes(root, rel, shards, licenses, cell_count):
     """Describe the released file axes and the applicable licence evidence."""
     dimensions = ''
-    license_text = 'MIT'
+    license_text = (
+        'MIT' if rel == 'scripts/readers.zip' else
+        'Derived data: source-specific access and reuse terms in provenance/dataset_manifest.tsv'
+    )
     parts = pathlib.PurePosixPath(rel).parts
     if len(parts) == 4 and parts[:2] == ('expression', 'shards'):
         dataset, component = parts[2:]
@@ -124,7 +127,7 @@ def update_manifest_metadata_only(root):
     for row in rows:
         rel = row['Relative_Path']
         path = root/rel
-        if rel == 'README.md':
+        if rel in ('README.md', 'provenance/dataset_manifest.tsv'):
             data = path.read_bytes()
             row['Bytes'] = len(data)
             row['SHA256'] = hashlib.sha256(data).hexdigest()
@@ -140,11 +143,29 @@ def update_manifest_metadata_only(root):
 
 def main():
     root = pathlib.Path(sys.argv[1]).resolve()
+    readme_path = root/'README.md'
+    if readme_path.is_file():
+        readme = readme_path.read_text()
+        updated_readme = readme.replace(
+            'Expression-shard licences follow `provenance/dataset_manifest.tsv`; other package files use MIT.',
+            'Expression-shard licences follow `provenance/dataset_manifest.tsv`. '
+            'Shared metadata, embeddings and LISI outputs retain the source-specific conditions recorded there; '
+            'the code license does not relicense third-party data. `scripts/readers.zip` uses the MIT License.'
+        )
+        if updated_readme != readme:
+            readme_path.write_text(updated_readme)
     if '--manifest-metadata-only' in sys.argv[2:]:
         update_manifest_metadata_only(root)
         return
     seal_path = pathlib.Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root.parent/'package_seal.json'
     changed = []
+
+    plot_object = root/'objects/objects_celltype_plot.rds'
+    if plot_object.is_file():
+        plot_object.unlink()
+        changed.append('removed objects/objects_celltype_plot.rds')
+        if not any(plot_object.parent.iterdir()):
+            plot_object.parent.rmdir()
 
     # 1. cluster annotation duplicates Cluster/CellType/counts already in metadata.
     cluster_annotation = root/'metadata/cluster_annotation.tsv'

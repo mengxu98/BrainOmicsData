@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Serialize the frozen results into the deposit package: 22 expression shards,
 # 21-column metadata, eight embeddings, per-cell LISI and the provenance tables.
-#
-# Requirements: 100 GB memory; no GPU.
 set -euo pipefail
 
 BRAINOMICS_STAGE=11_sciencedb_export
@@ -11,6 +9,10 @@ source "functions/utils.sh"
 
 cd "$BRAINOMICS_REPO_ROOT"
 brainomics_require_executor
+if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
+  brainomics_run_cpu_stage 11_sciencedb_export.sh "$@"
+  exit 0
+fi
 check_command "$BRAINOMICS_RSCRIPT"
 
 frozen="${BRAINOMICS_FROZEN_DIR:-$BRAINOMICS_REPO_ROOT/results/frozen_run}"

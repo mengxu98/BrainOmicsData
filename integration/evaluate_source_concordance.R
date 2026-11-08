@@ -3,6 +3,69 @@ suppressPackageStartupMessages(library(data.table))
 source("functions/utils.R")
 source("functions/data_paths.R")
 setDTthreads(2L)
+args <- commandArgs(trailingOnly = TRUE)
+stopifnot(length(args) %in% c(0L, 3L))
+if (length(args) == 3L) {
+  input <- normalizePath(args[1], mustWork = TRUE)
+  map_file <- normalizePath(args[2], mustWork = TRUE)
+  out <- args[3]
+  if (dir.exists(out)) stop("Output directory already exists: ", out)
+  d <- fread(input)
+  class_map <- fread(map_file, na.strings = "")
+  stopifnot(nrow(d) == 1661798L, !anyDuplicated(d$CellID), uniqueN(d$Donor) == 26L,
+    all(d$Mapping_Status == "mapped"), !anyDuplicated(class_map$Source_CellClass),
+    all(d$Source_CellClass %in% class_map$Source_CellClass))
+  d[, Source_Comparable := class_map$Source_Comparable[match(Source_CellClass, class_map$Source_CellClass)]]
+  d[Source_Comparable == "", Source_Comparable := NA_character_]
+  restricted <- restrict_reference_labels(d$Working_CellType, !is.na(d$Source_Comparable))
+  d[, `:=`(Restricted_Label = restricted$Prediction, Restricted_Status = restricted$Mapping_Status)]
+  d[, Candidate_Broad := restrict_reference_labels(Working_CellType, rep(TRUE, .N))$Prediction]
+  d[, `:=`(Comparable = !is.na(Source_Comparable), Assigned = !is.na(Restricted_Label),
+    Known_OutOfReference = Source_CellClass == "Erythrocyte")]
+  d[, Candidate_Error := Comparable & (is.na(Candidate_Broad) | Candidate_Broad != Source_Comparable)]
+  d[, Restricted_Error := Assigned & Restricted_Label != Source_Comparable]
+  stopifnot(sum(d$Comparable) == 605701L, sum(!d$Comparable) == 1056097L,
+    all(is.na(d$Restricted_Label[!d$Comparable])),
+    !anyNA(d$Candidate_Error), !anyNA(d$Restricted_Error))
+  summarize <- function(fields) d[, .(
+    Cells = .N, Comparable_Cells = sum(Comparable), Assigned_Cells = sum(Assigned),
+    Unsupported_Cells = sum(!Assigned), Unsupported_Rate = mean(!Assigned),
+    Candidate_Error_Cells = if (any(Comparable)) sum(Candidate_Error[Comparable]) else NA_integer_,
+    Candidate_Error_Rate = if (any(Comparable)) mean(Candidate_Error[Comparable]) else NA_real_,
+    Assigned_Error_Cells = if (any(Assigned)) sum(Restricted_Error[Assigned]) else NA_integer_,
+    Assigned_Error_Rate = if (any(Assigned)) mean(Restricted_Error[Assigned]) else NA_real_,
+    Correct_Assigned_Per_All_Comparable = if (any(Comparable)) sum(Assigned & !Restricted_Error) / sum(Comparable) else NA_real_,
+    Known_OutOfReference_Cells = sum(Known_OutOfReference),
+    Forced_OutOfReference_Candidate_Errors = if (any(Known_OutOfReference)) sum(Known_OutOfReference) else NA_integer_,
+    Known_OutOfReference_Candidate_Error_Rate = if (any(Known_OutOfReference)) 1 else NA_real_,
+    Candidate_Inhibitory_Cells = sum(Working_CellType == "Inhibitory neurons"),
+    Candidate_Inhibitory_Support_GE_0_7 = sum(Working_CellType == "Inhibitory neurons" & Neighbor_Vote_Support >= 0.7)
+  ), by = fields]
+  reports <- list(
+    restricted_by_source = summarize("Source_CellClass"),
+    restricted_by_donor_source = summarize(c("Donor", "Source_CellClass")),
+    restricted_by_donor = summarize("Donor")
+  )
+  for (report in reports) stopifnot(
+    sum(report$Cells) == nrow(d),
+    sum(report$Comparable_Cells) == sum(d$Comparable),
+    sum(report$Assigned_Cells) == sum(d$Assigned),
+    sum(report$Unsupported_Cells) == sum(!d$Assigned),
+    sum(report$Known_OutOfReference_Cells) == sum(d$Known_OutOfReference),
+    sum(report$Forced_OutOfReference_Candidate_Errors, na.rm = TRUE) == sum(d$Known_OutOfReference),
+    sum(report$Candidate_Inhibitory_Cells) == sum(d$Working_CellType == "Inhibitory neurons"),
+    sum(report$Candidate_Inhibitory_Support_GE_0_7) == sum(d$Working_CellType == "Inhibitory neurons" & d$Neighbor_Vote_Support >= 0.7)
+  )
+  dir.create(out, recursive = TRUE)
+  for (name in names(reports)) fwrite(reports[[name]], file.path(out, paste0(name, ".tsv")), sep = "\t", na = "NA")
+  fwrite(d[, .(Cells = .N), by = .(Source_CellClass, Working_CellType, Restricted_Label, Restricted_Status)],
+    file.path(out, "restricted_source_prediction.tsv"), sep = "\t", na = "NA")
+  fwrite(d[, .(CellID, Donor, Source_CellClass, Candidate_Label = Working_CellType,
+    Neighbor_Vote_Support, Restricted_Label, Restricted_Status, UMAP_1, UMAP_2)],
+    file.path(out, "restricted_query_predictions.tsv.gz"), sep = "\t", na = "NA")
+  quit(save = "no")
+}
+
 root <- file.path(brainomics_results_dir(), "heldout_mapping")
 mapping <- fread(file.path(root, "rpca_mapping/query_rpca_mapping.tsv.gz"))
 stopifnot(

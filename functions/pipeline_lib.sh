@@ -13,7 +13,6 @@ if [ -f "$BRAINOMICS_REPO_ROOT/hpc/local.env" ]; then
   # shellcheck disable=SC1091
   source "$BRAINOMICS_REPO_ROOT/hpc/local.env"
 fi
-# The same R/Python prefix is used by local drivers and Slurm jobs.
 source "$BRAINOMICS_REPO_ROOT/environment/activate.sh"
 BRAINOMICS_DATA_ROOT="${BRAINOMICS_DATA_ROOT:-$(cd "$BRAINOMICS_REPO_ROOT/../.." && pwd)/data/BrainOmicsData}"
 BRAINOMICS_RUN_ROOT="${BRAINOMICS_RUN_ROOT:-$BRAINOMICS_REPO_ROOT/results/run_root}"
@@ -25,6 +24,7 @@ BRAINOMICS_SCVI_PYTHON="${BRAINOMICS_SCVI_PYTHON:-python3}"
 export BRAINOMICS_REPO_ROOT BRAINOMICS_DATA_ROOT BRAINOMICS_RUN_ROOT
 export BRAINOMICS_RESULTS_DIR BRAINOMICS_EXECUTOR BRAINOMICS_RSCRIPT BRAINOMICS_SCVI_PYTHON
 export BRAINOMICS_PYTHON
+export BRAINOMICS_REFERENCE_RUN_ROOT BRAINOMICS_GENE_REFERENCE_DIR
 export BRAINOMICS_HPC_ROOT BRAINOMICS_HPC_PARTITION BRAINOMICS_HPC_GPU_PARTITION
 export BRAINOMICS_HPC_LOG_DIR BRAINOMICS_HPC_HOST BRAINOMICS_HPC_PORT BRAINOMICS_HPC_DATA_ROOT
 
@@ -107,6 +107,39 @@ brainomics_run_sbatch() {
   job_id="$(brainomics_submit "$BRAINOMICS_REPO_ROOT/$script" \
     "BRAINOMICS_EXECUTOR=local" "$@")" ||
     brainomics_die "$script submission or execution failed"
+  brainomics_log "$script completed (job $job_id)"
+}
+
+brainomics_run_cpu_stage() {
+  local script="$1"
+  shift
+  brainomics_require_file "$BRAINOMICS_REPO_ROOT/$script"
+  local cpus="${BRAINOMICS_CPU_CPUS:-}"
+  local memory="${BRAINOMICS_CPU_MEMORY:-${BRAINOMICS_SLURM_MEMORY:-}}"
+  local duration="${BRAINOMICS_CPU_TIME:-}"
+  local resource_args=()
+  if [ -n "$cpus" ]; then
+    [[ "$cpus" =~ ^[1-9][0-9]*$ ]] || brainomics_die "BRAINOMICS_CPU_CPUS must be a positive integer"
+    resource_args+=(--cpus-per-task="$cpus")
+  fi
+  if [ -n "$memory" ]; then resource_args+=(--mem="$memory"); fi
+  if [ -n "$duration" ]; then resource_args+=(--time="$duration"); fi
+  local log_dir="${BRAINOMICS_HPC_LOG_DIR:-$BRAINOMICS_REPO_ROOT/hpc/logs}"
+  mkdir -p "$log_dir"
+  local name="${script%.sh}"
+  local wrapped argument quoted job_id
+  printf -v wrapped 'exec env BRAINOMICS_EXECUTOR=local bash %q' "$BRAINOMICS_REPO_ROOT/$script"
+  for argument in "$@"; do
+    printf -v quoted '%q' "$argument"
+    wrapped+=" $quoted"
+  done
+  brainomics_log "submitting $script to the CPU partition and waiting for completion"
+  job_id="$(env BRAINOMICS_EXECUTOR=local sbatch --parsable --wait \
+    --partition="$BRAINOMICS_HPC_PARTITION" --nodes=1 --ntasks=1 \
+    "${resource_args[@]}" \
+    --job-name="brainomics_${script%%_*}" --chdir="$BRAINOMICS_REPO_ROOT" \
+    --output="$log_dir/${name}_%j.out" --error="$log_dir/${name}_%j.err" \
+    --export=ALL --wrap="$wrapped")" || brainomics_die "$script submission or execution failed"
   brainomics_log "$script completed (job $job_id)"
 }
 

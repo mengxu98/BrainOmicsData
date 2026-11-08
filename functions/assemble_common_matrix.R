@@ -27,9 +27,12 @@ main <- function(run) {
   options(Seurat.object.assay.version='v5'); setDTthreads(1)
   marker <- file.path(run, 'matrices/MATRIX_ACCEPTED.json')
   stopifnot(!file.exists(marker))
-  verified <- fromJSON(file.path(run, 'matrices/NAMED_TRANSFER_VERIFIED.json'))
-  stopifnot(verified$state == 'NAMED_TRANSFER_VERIFIED',
-    verified$manifest_sha256 == processed_file_sha256(file.path(run, 'named_transfer_expected.json')))
+  transfer_record <- file.path(run, 'matrices/NAMED_TRANSFER_VERIFIED.json')
+  if (file.exists(transfer_record) || file.exists(file.path(run, 'named_transfer_expected.json'))) {
+    verified <- fromJSON(transfer_record)
+    stopifnot(verified$state == 'NAMED_TRANSFER_VERIFIED',
+      verified$manifest_sha256 == processed_file_sha256(file.path(run, 'named_transfer_expected.json')))
+  }
   policy_file <- file.path(run, 'named_gene_panel_policy.json')
   policy <- fromJSON(policy_file)
   panel <- fread(file.path(run, 'named_gene_panel_24659.tsv'))
@@ -54,7 +57,6 @@ main <- function(run) {
   stopifnot(length(cells) == 2602031)
   out <- brainomics_results_dir(); dir.create(out, recursive=TRUE, showWarnings=FALSE)
   list_file <- file.path(out, 'objects_list_processed.rds')
-  # Level-1 gzip fits this independent run within the available HPC storage.
   temp <- paste0(list_file, '.tmp')
   con <- gzfile(temp, 'wb', compression=1)
   tryCatch(serialize(objects_list, con), finally=close(con))

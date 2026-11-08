@@ -18,10 +18,20 @@ expected <- t(vapply(seq_len(nrow(query)), function(i) {
 stopifnot(isTRUE(all.equal(unname(result$Projection), unname(expected))))
 votes <- scop:::knn_vote_labels(matrix(labels[idx], nrow = nrow(idx)), levels = unique(labels))
 stopifnot(
-  identical(result$Prediction, unname(votes$best)),
+  identical(result$Candidate_Prediction, unname(votes$best)),
+  all(is.na(result$Prediction)), all(result$Mapping_Status == "scope_not_confirmed"),
   isTRUE(all.equal(result$Support, unname(apply(votes$probability, 1L, max)))),
   all(result$Support >= 0 & result$Support <= 1), all(result$Margin >= 0)
 )
 second <- reference_knn_projection(query, reference, coordinates, labels, index = result$Index, k = 7L)
-stopifnot(identical(second$Prediction, result$Prediction), identical(second$Projection, result$Projection))
-cat("PASS: bounded projection, scop-compatible votes and index reuse\n")
+stopifnot(identical(second$Candidate_Prediction, result$Candidate_Prediction), identical(second$Projection, result$Projection))
+candidate <- c("Inhibitory neurons", "Neural progenitors", "Microglia", "Fibroblasts", "Excitatory neurons")
+restricted <- restrict_reference_labels(candidate, c(FALSE, TRUE, TRUE, NA, TRUE))
+stopifnot(
+  identical(restricted$Prediction, c(NA_character_, NA_character_, "Immune", NA_character_, "Neuron")),
+  identical(restricted$Mapping_Status, c("outside_demonstrated_scope", "unsupported_reference_assignment",
+    "within_demonstrated_scope", "scope_not_confirmed", "within_demonstrated_scope")),
+  inherits(try(restrict_reference_labels(candidate, TRUE), silent = TRUE), "try-error"),
+  inherits(try(restrict_reference_labels(candidate, rep("TRUE", 5)), silent = TRUE), "try-error")
+)
+cat("PASS: projection, candidate votes, default withholding and explicit scope restriction\n")

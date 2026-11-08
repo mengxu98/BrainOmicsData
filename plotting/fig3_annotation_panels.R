@@ -16,28 +16,29 @@ p <- ggplot(d, aes(Dataset_Equal_Mean_Concordance, Main_CellType)) +
     ymin = as.numeric(Main_CellType) - .42, ymax = as.numeric(Main_CellType) + .42,
     fill = Main_CellType), inherit.aes = FALSE, alpha = .14, colour = NA) +
   geom_errorbar(aes(xmin = CI95_Lower, xmax = CI95_Upper, colour = Main_CellType),
-    orientation = "y", width = .28, linewidth = .45, na.rm = TRUE) +
+    orientation = "y", width = .28, linewidth = .4, na.rm = TRUE) +
   geom_point(data = studies, aes(x = Agreement, y = Working_CellType),
-    inherit.aes = FALSE, shape = 21, size = 1.15, stroke = .25,
+    inherit.aes = FALSE, shape = 21, size = .9, stroke = .2,
     fill = "white", colour = "#4A4A4A",
     position = position_jitter(width = 0, height = .16, seed = 1)) +
-  geom_point(aes(fill = Main_CellType), shape = 21, size = 1.9,
-    colour = "black", stroke = .3) +
+  geom_point(aes(fill = Main_CellType), shape = 21, size = 1.6,
+    colour = "black", stroke = .25) +
   scale_fill_manual(values = brainomics_celltype_colors, guide = "none") +
   scale_colour_manual(values = brainomics_celltype_colors, guide = "none") +
   scale_x_continuous(limits = c(-.03, 1.04), breaks = c(0, .5, 1),
     expand = c(0, 0)) +
-  scale_y_discrete(expand = expansion(add = .55)) +
+  scale_y_discrete(expand = expansion(add = .55), labels = function(labels)
+    vapply(labels, function(label) paste(strwrap(label, width = 23), collapse = "\n"), character(1))) +
   labs(x = "Source-label concordance", y = NULL) +
   theme_classic(base_family = "Arial", base_size = 6) +
-  theme(axis.text.y = element_text(size = 5.4, colour = "#222222"),
-    axis.text.x = element_text(size = 5.4, colour = "#222222"),
-    axis.title.x = element_text(size = 6, colour = "#222222"),
+  theme(axis.text.y = element_text(size = 5.9, colour = "#222222", lineheight = .9),
+    axis.text.x = element_text(size = 5.9, colour = "#222222"),
+    axis.title.x = element_text(size = 6.2, colour = "#222222"),
     axis.line = element_line(linewidth = .25, colour = "black"),
     axis.ticks = element_line(linewidth = .25, colour = "black"),
-    plot.margin = margin(1.5, 1.5, 1.5, 1.5, "mm"))
+    plot.margin = margin(1.5, 1, 1.5, 1, "mm"))
 ggsave("figures/fig3c.pdf", p, device = grDevices::cairo_pdf,
-  width = 78, height = 52, units = "mm", family = "Arial")
+  width = 59, height = 54, units = "mm", family = "Arial")
 paths <- file.path("figures", c("fig3a.pdf",
   "fig3b.pdf", "fig3c.pdf"))
 work <- tempfile("fig3-layout-"); dir.create(work)
@@ -49,14 +50,13 @@ aspect <- vapply(paths, function(path) {
   as.numeric(size[3]) / as.numeric(size[1])
 }, numeric(1))
 unlink(work, recursive = TRUE)
-# B and C share one row height; the flatter heatmap takes the wider share.
 content_width <- 176
 bottom_gap <- 5
-width_c <- (content_width - bottom_gap) / (aspect[3] / aspect[2] + 1)
+width_c <- 59
 width_b <- content_width - bottom_gap - width_c
 widths <- c(content_width, width_b, width_c)
 heights <- widths * aspect
-height <- heights[1] + heights[2] + 15
+height <- heights[1] + max(heights[2:3]) + 15
 tops <- c(height - 5, height - 10 - heights[1], height - 10 - heights[1])
 xpos <- c(7, 7, 7 + width_b + bottom_gap)
 assemble_pdf_figure("fig3", c(187, height),

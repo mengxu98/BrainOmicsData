@@ -38,6 +38,12 @@ datasets=(
 )
 
 cd "$repo_dir"
+brainomics_require_executor
+
+if [ "$BRAINOMICS_EXECUTOR" = "slurm" ]; then
+  brainomics_run_cpu_stage 03_datasets_preprocessing.sh "$@"
+  exit 0
+fi
 
 if [ -n "$selected_dataset" ]; then
   supported=false

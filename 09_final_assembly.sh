@@ -3,8 +3,6 @@
 # comparison and evaluate the full-cell latent space.
 #
 # All integration methods must finish before this stage begins.
-#
-# Requirements: 100 GB memory; no GPU.
 set -euo pipefail
 
 BRAINOMICS_STAGE=09_final_assembly
@@ -32,7 +30,9 @@ for artifact in scvi_output_audit.tsv cell_ids.txt scvi_latent.float32.bin scvi_
   brainomics_require_file "$BRAINOMICS_RESULTS_DIR/scvi_output/$artifact"
 done
 "$BRAINOMICS_RSCRIPT" functions/run_parallel_integration.R "$BRAINOMICS_RUN_ROOT" collect
+"$BRAINOMICS_RSCRIPT" functions/run_parallel_integration.R "$BRAINOMICS_RUN_ROOT" cluster
 "$BRAINOMICS_RSCRIPT" integration/datasets_integration_04.R
 "$BRAINOMICS_RSCRIPT" integration/datasets_integration_05.R
+"$BRAINOMICS_RSCRIPT" annotation/export_annotation_inputs.R
 
 brainomics_log "integrated object and latent-space evaluation written to $BRAINOMICS_RESULTS_DIR"

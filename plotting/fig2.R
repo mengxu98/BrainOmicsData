@@ -82,13 +82,13 @@ p_effect <- ggplot(mixing,aes(Method,Mean,group=Method)) +
   labs(x=NULL,y="Dataset iLISI",title="Dataset mixing (50D)") + fig2_theme(7)+fig2_row_theme +
   theme(axis.text.x=element_text(angle=30,hjust=1))
 p_donor<-ggplot(v,aes(Method,Spearman_Donor_Distance_to_Raw,colour=Method))+geom_point(size=.6,alpha=.4,position=position_jitter(width=.12,height=0,seed=2026))+geom_point(data=ds,aes(y=Estimate),size=1.8)+scale_colour_manual(values=method_colors,guide="none")+labs(x=NULL,y="Spearman ρ to Raw",title="Donor geometry")+fig2_theme(7)+fig2_row_theme+theme(axis.text.x=element_text(angle=30,hjust=1))
-p_age<-ggplot(age,aes(Method,Dataset_Equal_MAE,colour=Method))+geom_hline(yintercept=unique(age$Dataset_Equal_Baseline_MAE),linewidth=.3,linetype=2,colour="#777777")+geom_point(data=folds,aes(y=MAE),size=.7,alpha=.5)+geom_point(size=2)+scale_colour_manual(values=method_colors,guide="none")+labs(x=NULL,y="MAE (years)",title="Age prediction")+fig2_theme(7)+fig2_row_theme+theme(axis.text.x=element_text(angle=30,hjust=1))
+p_age<-ggplot(age,aes(Method,Dataset_Equal_MAE,colour=Method))+geom_hline(yintercept=unique(age$Dataset_Equal_Baseline_MAE),linewidth=.3,linetype=2,colour="#777777")+geom_point(data=folds,aes(y=MAE),size=.7,alpha=.5)+geom_point(size=2)+scale_colour_manual(values=method_colors,guide="none")+labs(x=NULL,y="MAE (years)",title="Age assessment within atlas")+fig2_theme(7)+fig2_row_theme+theme(axis.text.x=element_text(angle=30,hjust=1))
 validation_panels <- list(B = p_effect, C = p_source_lisi, D = p_donor, E = p_age)
 panel_files <- c(B = "fig2b.pdf", C = "fig2c.pdf",
                  D = "fig2d.pdf", E = "fig2e.pdf")
 for (id in names(validation_panels)) {
   ggsave(file.path("figures", panel_files[[id]]),
-    validation_panels[[id]], width = 41, height = 48,
+    validation_panels[[id]], width = 41, height = 39,
     units = "mm", device = cairo_pdf, family = "Arial", bg = "white")
 }
 Sys.setenv(BRAINOMICS_ASSEMBLE = "fig2")

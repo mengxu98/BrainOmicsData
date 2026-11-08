@@ -44,6 +44,12 @@ def main():
     evidence_by_dataset = {r['Dataset']: r for r in evidence}
     manifest_path = package/'provenance/dataset_manifest.tsv'
     columns, rows = read_tsv(manifest_path)
+    columns += [column for column in [
+        'Source_Accession', 'Source_Repository', 'Publication_DOI', 'Title', 'First_Author',
+        'Publication_Year', 'Source_URL', 'Repository_Record_URL', 'Processed_Input_Route',
+        'Processed_Input_URLs', 'Processed_Record_URL', 'Data_License',
+        'Derived_Matrix_Scope', 'Article_License_URL',
+    ] if column not in columns]
     for row in rows:
         dataset = row['Dataset']
         a = access_by_dataset.get(dataset)

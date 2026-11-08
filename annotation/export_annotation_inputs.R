@@ -18,8 +18,10 @@ dir.create(reduction_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Reuse complete fitted spaces when they are already available.
 files <- file.path(reduction_dir, paste0(tolower(method_levels), "_latent.rds"))
-if (all(file.exists(files))) {
-  cells <- as.character(readRDS(metadata_file)$Cells)
+if (all(file.exists(files)) && file.exists(metadata_file) &&
+    file.exists(file.path(annotation_dir, "rna_features.tsv.gz"))) {
+  metadata <- readRDS(metadata_file)
+  cells <- if ("Cells" %in% names(metadata)) as.character(metadata$Cells) else rownames(metadata)
   rows <- lapply(seq_along(method_levels), function(i) {
     embedding <- readRDS(files[i])
     stopifnot(
@@ -37,17 +39,19 @@ if (all(file.exists(files))) {
   quit(save = "no", status = 0L)
 }
 
-if (!file.exists(object_file) || !file.exists(metadata_file)) {
-  stop("Final integration object or metadata is missing")
+if (!file.exists(object_file)) {
+  stop("Final integration object is missing")
 }
 
 thisutils::log_message("[annotation-input-export] ", "Loading final four-method integration object")
 object <- load_processed_object(object_file)
-metadata <- readRDS(metadata_file)
+metadata <- if (file.exists(metadata_file)) readRDS(metadata_file) else object[[]]
+if (!"Cells" %in% names(metadata)) metadata$Cells <- rownames(metadata)
 if (!identical(colnames(object), as.character(metadata$Cells)) ||
   !identical(rownames(object[[]]), colnames(object))) {
   stop("Object, matrix and metadata cell order differ")
 }
+if (!file.exists(metadata_file)) saveRDS(metadata, metadata_file)
 
 method_identity <- integration_method_identity()
 method_identity <- method_identity[method_identity$Space == "latent", ]

@@ -8,9 +8,60 @@ set -e
 source "functions/utils.sh"
 BRAINOMICS_STAGE=02_source_download
 source "functions/pipeline_lib.sh"
+BRAINOMICS_PYTHON="${BRAINOMICS_PYTHON:-python3}"
 
 code_dir="download"
 overwrite="${1:-F}"
+if [ "$overwrite" = --references ]; then
+  "$BRAINOMICS_PYTHON" - "$BRAINOMICS_DATA_ROOT/raw/gene_references" <<'PY'
+import csv
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(sys.argv[1])
+root.mkdir(parents=True, exist_ok=True)
+manifest = root/'reference_manifest.json'
+specifications = [
+    ('hgnc_complete_set.txt', 'HGNC monthly 2026-09-04',
+     'https://storage.googleapis.com/public-download-files/hgnc/archive/archive/monthly/tsv/hgnc_complete_set_2026-09-04.txt'),
+    ('Homo_sapiens.gene_info.gz', 'NCBI Gene human (rolling release)',
+     'https://ftp.ncbi.nlm.nih.gov/gene/DATA/GENE_INFO/Mammalia/Homo_sapiens.gene_info.gz'),
+    ('gene_history.gz', 'NCBI Gene history (rolling release)',
+     'https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene_history.gz'),
+    ('Homo_sapiens.GRCh38.98.gtf.gz', 'Ensembl 98',
+     'https://ftp.ensembl.org/pub/release-98/gtf/homo_sapiens/Homo_sapiens.GRCh38.98.gtf.gz'),
+    ('Allen_GRCh38p2_reference.zip', 'Allen GRCh38.p2 gene annotation',
+     'https://celltypes.brain-map.org/api/v2/well_known_file_download/502175284'),
+]
+specifications += [(f'gencode.v{version}.annotation.gtf.gz', f'GENCODE {version}',
+    f'https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{version}/gencode.v{version}.annotation.gtf.gz')
+    for version in (17, 19, 24, 27, 32, 38, 43, 50)]
+
+records = []
+for name, version, url in specifications:
+    target = root/name
+    if not target.is_file():
+        partial = target.with_name(target.name+'.part')
+        subprocess.run(['curl', '--fail', '--location', '--retry', '3', '--retry-all-errors',
+                        '--silent', '--show-error', '--output', str(partial), url], check=True)
+        if not partial.stat().st_size:
+            raise RuntimeError(f'Empty reference download: {url}')
+        partial.replace(target)
+    records.append(dict(file=name, version=version, source_url=url))
+    print(f'Reference available: {name}', flush=True)
+with (root/'hgnc_complete_set.txt').open() as handle:
+    fields = csv.DictReader(handle, delimiter='\t').fieldnames
+if not {'hgnc_id', 'symbol', 'status', 'ensembl_gene_id'} <= set(fields or []):
+    raise RuntimeError('HGNC download has an unexpected schema')
+partial = manifest.with_name(manifest.name+'.part')
+partial.write_text(json.dumps(dict(files=records), indent=2)+'\n')
+partial.replace(manifest)
+print(f'Reference versions and sources: {manifest}')
+PY
+  exit 0
+fi
 check_command "$BRAINOMICS_RSCRIPT"
 check_command "$BRAINOMICS_PYTHON"
 

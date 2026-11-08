@@ -4,6 +4,7 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo"
+source "$repo/environment/activate.sh"
 analysis_dir="${BRAINOMICS_ANALYSIS_DIR:-$repo/results/analysis_run}"
 rscript="${BRAINOMICS_RSCRIPT:-Rscript}"
 metadata="${BRAINOMICS_METADATA_FILE:-}"

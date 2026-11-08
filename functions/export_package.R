@@ -34,7 +34,7 @@ stopifnot(all(qc$Source_Status%in%c('COMPUTED_SOURCE_COUNTS','NO_MT_FEATURES','Z
 stopifnot(all(is.na(qc$percent_mito)|(is.finite(qc$percent_mito)&qc$percent_mito>=0&qc$percent_mito<=100)))
 stopifnot(all(!is.na(qc$percent_mito)==(qc$Source_Status=='COMPUTED_SOURCE_COUNTS')))
 log('Loading expression object for serialization')
-obj <- readRDS(file.path(frozen,'objects_integrated_clustered.rds'))
+obj <- readRDS(configured_file('BRAINOMICS_EXPRESSION_OBJECT',frozen,'objects_integrated_clustered.rds'))
 stopifnot(ncol(obj)==2602031L,nrow(obj)==24659L)
 cells<-colnames(obj); genes<-rownames(obj)
 stopifnot(!anyDuplicated(cells),!anyDuplicated(genes))

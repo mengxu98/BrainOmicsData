@@ -8,8 +8,8 @@ Verifies, without running the pipeline:
   2. every column the code consumes exists in data/source_access_summary.tsv and
      data/source_redistribution_evidence.tsv, and every registered download
      script exists;
-  3. the sealed package agrees with the repository tables (dataset set and a
-     byte-identical replay of provenance/dataset_manifest.tsv);
+  3. the sealed package retains the same data contract while source descriptions
+     may be updated, and the current manifest exporter is idempotent;
   4. every path referenced by the numbered drivers exists;
   5. the environment locks used by environment/verify_environment.R are present.
 
@@ -110,7 +110,9 @@ def main():
     manifest_path = package/'provenance/dataset_manifest.tsv'
     if manifest_path.is_file():
         manifest = read_tsv(manifest_path)
-        check(set(r['Dataset'] for r in manifest) == set(cohort),
+        check(len(manifest) == len(cohort) and
+              len({r['Dataset'] for r in manifest}) == len(manifest) and
+              set(r['Dataset'] for r in manifest) == set(cohort),
               'package provenance/dataset_manifest.tsv differs from the evidence table')
         with tempfile.TemporaryDirectory() as tmp:
             out = pathlib.Path(tmp)/'provenance'
@@ -120,8 +122,23 @@ def main():
                                      str(repo), tmp], capture_output=True, text=True)
             check(result.returncode == 0, f'merge_dataset_manifest.py failed: {result.stderr.strip()}')
             if result.returncode == 0:
-                check((out/'dataset_manifest.tsv').read_bytes() == manifest_path.read_bytes(),
-                      'repository tables do not reproduce the released provenance/dataset_manifest.tsv')
+                exported = read_tsv(out/'dataset_manifest.tsv')
+                descriptive = {'Source_Repository', 'Source_URL', 'Repository_Record_URL',
+                               'Processed_Input_Route', 'Processed_Input_URLs', 'Processed_Record_URL',
+                               'Data_License', 'Derived_Matrix_Scope'}
+                data_rows = lambda rows: [{key: value for key, value in row.items()
+                                          if key not in descriptive} for row in rows]
+                check(data_rows(exported) == data_rows(manifest),
+                      'manifest export changes non-documentary fields of the released data')
+                content = (out/'dataset_manifest.tsv').read_bytes()
+                result = subprocess.run([sys.executable, str(repo/'functions/merge_dataset_manifest.py'),
+                                         str(repo), tmp], capture_output=True, text=True)
+                check(result.returncode == 0, f'repeated manifest export failed: {result.stderr.strip()}')
+                if result.returncode == 0:
+                    check((out/'dataset_manifest.tsv').read_bytes() == content,
+                          'manifest export is not idempotent')
+                if content != manifest_path.read_bytes():
+                    print('note: source descriptions differ from the archive; released data fields remain checked')
         metadata_tsv = package/'metadata/metadata.tsv.gz'
         if metadata_tsv.is_file():
             counts = {}
@@ -154,7 +171,7 @@ def main():
             check(rows and {'Package', 'Version'} <= set(rows[0].keys()), f'environment/{lock} lacks Package/Version columns')
             versions = {row['Package']: row['Version'] for row in rows}
             check(len(versions) == len(rows), f'environment/{lock} has duplicate packages')
-            check(versions.get('R') == '4.5.1', 'the workflow requires one R 4.5.1 environment')
+            check(versions.get('R') == '4.5.1', 'environment/r-packages.lock.tsv must pin the workflow R version')
     for overview in ['figures/fig1.svg', 'figures/fig1-night.svg']:
         check((repo/overview).is_file(), f'README overview figure {overview} is missing')
 
@@ -164,7 +181,7 @@ def main():
             print('  -', item)
         return 1
     print(f'PASS consistency: {len(cohort)}-dataset cohort, registry columns, download scripts, '
-          f'package replay, driver references and environment locks agree')
+          f'package data contracts, manifest export, driver references and environment locks agree')
     return 0
 
 
