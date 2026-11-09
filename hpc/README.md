@@ -1,41 +1,43 @@
 # HPC execution
 
-Restore the environment with `environment/restore.sh` and set `BRAINOMICS_ENV_ROOT` to
-the environment prefix accessible from the compute nodes.
-
 ## Site configuration
 
-Copy `hpc/local.env.example` to the ignored `hpc/local.env` and configure the
-environment path, data/run paths, CPU and GPU partitions, and log folder.
-The numbered drivers, including the separate upload driver, load this file
-before selecting the environment.
+Copy `hpc/local.env.example` to `hpc/local.env` and set the cluster paths,
+partitions and log directory. Set the GPU partition if needed. The numbered
+scripts load this file automatically.
 
-Submit through the numbered entry points so that their configuration is exported:
+Follow the [environment setup](../environment/REPRODUCIBILITY.md#environment).
+Set `BRAINOMICS_ENV_ROOT` to a prefix shared by the compute nodes and place the
+[required inputs](../environment/REPRODUCIBILITY.md#workflow-dependencies) in the configured paths.
+
+## Submit jobs
+
+Run from the repository root. For integration with prepared inputs:
 
 ```sh
 BRAINOMICS_EXECUTOR=slurm bash run_pipeline.sh --from 05 --to 09
 ```
 
-Stages 05–09 run in dependency order and wait for each job's exit status:
-HVG/scVI input, PCA/Harmony, scVI, RPCA, then collection and final evaluation.
-Set `BRAINOMICS_RPCA_MEMORY` for the RPCA job according to your cluster and
-workload. See `hpc/*.sbatch` for the other job resource settings.
+Stage 01 can submit environment installation. Stages 03, 04, 10 and 11 use the
+CPU partition. The drivers wait for completion and report job failures. Inside
+an existing allocation, run with `BRAINOMICS_EXECUTOR=local`.
 
-Stage 01 supports the Slurm environment installation wrappers. Stages 03, 04,
-10 and 11 also submit their existing drivers to the CPU partition when
-`BRAINOMICS_EXECUTOR=slurm`. They wait for completion and propagate job failure;
-the submitted body runs in place on the allocated compute node. Configure
-`BRAINOMICS_CPU_CPUS`, `BRAINOMICS_CPU_MEMORY` and `BRAINOMICS_CPU_TIME` as
-needed. Unset requests use the site defaults. Stage 03 accepts an optional
-overwrite flag and dataset name, for example:
+To preprocess one dataset and replace its existing outputs:
 
 ```sh
 BRAINOMICS_EXECUTOR=slurm bash 03_datasets_preprocessing.sh T GSE67835
 ```
 
-Place downloaded inputs in the configured data root and run the remaining
-stages on the cluster in the locked environment. Stage 12 uploads the package
-only when selected explicitly.
+## Job resources and file transfer
 
-`hpc/pull_source_file.sh` copies individual source files over SSH using the host,
-port and remote data root in `hpc/local.env`; it is separate from analysis execution.
+For stages 03, 04, 10 and 11, set `BRAINOMICS_CPU_CPUS`, `BRAINOMICS_CPU_TIME`
+and `BRAINOMICS_CPU_MEMORY` as needed. Memory falls back to
+`BRAINOMICS_SLURM_MEMORY` if `BRAINOMICS_CPU_MEMORY` is empty. If both are
+empty, Slurm applies the site default.
+
+Use `BRAINOMICS_RPCA_MEMORY` for RPCA. `BRAINOMICS_SLURM_MEMORY` can also
+override the environment-install memory request. See `hpc/*.sbatch` for
+other job settings.
+
+`hpc/pull_source_file.sh` transfers individual files over SSH using
+`hpc/local.env`.
