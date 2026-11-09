@@ -24,8 +24,7 @@ bash 01_environment.sh --verify
 ```
 
 For a fresh restore, choose a new environment directory and an empty
-`XDG_CACHE_HOME`. The activation script clears inherited library and compiler
-search paths so that the project environment supplies the dependencies.
+`XDG_CACHE_HOME`.
 Install Arial and make it available to fontconfig. GPU runs of scVI need a
 compatible NVIDIA driver. The environment provides `pigz`, Poppler and TeX
 tools. When XeLaTeX or required macros are missing, the installer uses TinyTeX
@@ -100,10 +99,9 @@ bash 04_source_counts_assembly.sh --check-inputs
 
 To reuse an existing policy, supply `applied_gene_row_exclusions.tsv`,
 `allowed_count_addition.tsv` and `applied_gene_removal_policy.json` together.
-Otherwise stage 04 builds per-source rules from observed counts, source
-identifiers and the fixed gene references. Observations and rules are written
-under `run/source_gene_groups/` and `run/source_gene_policy/`. If you
-use a transfer record, supply its matching manifest as well.
+Otherwise, stage 04 builds per-source rules from observed counts, source
+identifiers and the fixed gene references. If you use a transfer record,
+supply its matching manifest as well.
 
 Download gene references with `bash 02_datasets_download.sh --references`.
 Use `BRAINOMICS_GENE_REFERENCE_DIR` for a custom location. For exact
@@ -236,10 +234,10 @@ Rscript --vanilla integration/evaluate_source_concordance.R \
   /path/to/new-output
 ```
 
-The command summarizes assignments by source class and donor, with additional
-diagnostic tables by donor and source. The per-cell file
-`mapping/restricted_query_predictions.tsv.gz` and the retained query
-predictions are stored outside Git and ScienceDB V2.
+The command writes summaries by source class and donor to the output directory
+you specify. It also writes per-cell results there as
+`restricted_query_predictions.tsv.gz`. Retained query predictions are stored
+outside Git and ScienceDB V2.
 
 ### Gene-expression reuse
 
@@ -298,8 +296,10 @@ ScienceDB files separate from the run.
 
 The full reference build covered 22 sources, 2,602,031 cells or nuclei and
 24,659 genes, from processed source files through integration and
-75-cluster partitioning. Targeted verification checked counts for two sources
-in the locked environment. Separate tests of the public Li and Ma inputs
+75-cluster partitioning.
+
+In a separate verification of the locked environment, we checked counts for
+two sources. Separate tests of the public Li and Ma inputs
 reproduced the retained Stage 03 count matrices and key fields in the
 standardized metadata. Age summaries and label-transfer evaluation used
 retained donor centroids and predictions. Integration results and adopted
