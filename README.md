@@ -28,4 +28,6 @@ Use the reproducibility guide to [apply the adopted cell-type labels](environmen
 
 ## License and data use
 
-The code uses the [MIT License](LICENSE). For third-party data, see the [source access table](data/source_access_summary.tsv) and [redistribution terms](data/source_redistribution_evidence.tsv).
+The code uses the [MIT License](LICENSE).
+
+ScienceDB lists MIT for the integrated V2 resource. MIT covers our own contributions to the integration. All source data and third-party material in the release remain subject to the applicable terms of their original releases. See the [source access table](data/source_access_summary.tsv) and [source-specific redistribution terms](data/source_redistribution_evidence.tsv).

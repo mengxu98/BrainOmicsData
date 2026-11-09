@@ -190,6 +190,7 @@ bash $code_dir/GSE97942.sh
 # pmid: https://pubmed.ncbi.nlm.nih.gov/30545854/
 # data:
 # code:
+bash "$code_dir/Li_et_al_2018.sh"
 
 
 # Nowakowski_et_al_2017
@@ -254,6 +255,7 @@ bash $code_dir/GSE168408.sh
 bash $code_dir/GSE207334.sh
 
 # Ma_et_al_2022
+bash "$code_dir/Ma_et_al_2022.sh"
 
 
 # GSE235493 (multiome: snRNA-seq + snATAC-seq, Macaque)

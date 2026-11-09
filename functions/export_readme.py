@@ -11,6 +11,8 @@ The package contains 2,602,031 cells or nuclei, 24,659 genes, 22 source datasets
 
 Counts are split by source dataset for selective loading and to stay within sparse-matrix index limits. Every shard uses the same ordered gene set.
 
+MIT applies to our original integration contributions. Source data and third-party materials remain subject to their original terms, listed in `provenance/dataset_manifest.tsv`.
+
 - `expression/shard_manifest.tsv` indexes the 22 count-matrix shards in 10x Genomics Matrix Market format.
 - `metadata/metadata.tsv.gz` contains 21 columns; `metadata/metadata_dictionary.tsv` defines each field.
 - `Original_CellType` holds the source-study label; `CellType` holds the adopted 12-type annotation.
@@ -20,7 +22,7 @@ Counts are split by source dataset for selective loading and to stay within spar
 - `validation/lisi.tsv.gz` holds per-cell dataset iLISI and source-annotation cLISI for the four 50-dimensional representations.
 - `provenance/dataset_manifest.tsv` holds one row per source dataset with counts, publication identifiers, processed-input routes, licence terms and the source column behind `Original_CellType`.
 - `scripts/readers.zip` contains the R reader (`read_seurat.R`) and the Python reader (`read_h5ad.py`); the Python reader is delivered inside the archive because the deposit endpoint rejects `.py` filenames.
-- `provenance/file_manifest.tsv` lists payload dimensions, package schema version, licence, size, SHA256 and MD5. Dimensions are rows x columns (matrix shards: features x cells; embeddings and LISI: cells x coordinates or metrics). Expression-shard licences follow `provenance/dataset_manifest.tsv`; other package files use MIT. `md5sum.txt` also covers the manifest.
+- `provenance/file_manifest.tsv` lists payload dimensions, package schema version, licence, size, SHA256 and MD5. Dimensions are rows x columns (matrix shards: features x cells; embeddings and LISI: cells x coordinates or metrics). Expression-shard licences follow `provenance/dataset_manifest.tsv`. Shared metadata, embeddings and LISI outputs follow the applicable source terms. `scripts/readers.zip` uses the MIT License. `md5sum.txt` also covers the manifest.
 '''
 
 

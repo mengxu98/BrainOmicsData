@@ -59,9 +59,24 @@ output directories separate when reproducing a step.
 
 ### Source data and count matrices
 
-Stage 02 downloads the processed source files. Stage 03 prepares source
-objects and metadata under `$BRAINOMICS_DATA_ROOT/processed/`. Place the data
-and reference files on the machine where you will run the workflow.
+Stage 02 downloads the processed source files, including the Li and Ma inputs.
+Stage 03 prepares source objects and metadata under
+`$BRAINOMICS_DATA_ROOT/processed/`. Place the data and reference files on the
+machine where you will run the workflow.
+
+To download the inputs for Li or Ma separately:
+
+```sh
+bash download/Li_et_al_2018.sh
+bash download/Ma_et_al_2022.sh
+```
+
+The Li script places the two author RData files in `raw/Li_et_al_2018/rawData/`
+under `Prenatal_scRNA_seq/` and `Adult_snRNA_seq/`. For Li, stage 03 also reads
+the series matrix fetched by `bash download/GSE81475.sh`. The Ma script unpacks
+the [BrainSCOPE archive](https://brainscope.gersteinlab.org/integrative_files.html)
+to `raw/GSE207334/Ma_Sestan_mat.rds` and reuses an existing RDS. These paths
+are relative to `$BRAINOMICS_DATA_ROOT`.
 
 The full stage 04 run also needs five retained files from the reference build.
 Prepare them separately before running stage 04, since stages 02 and 03 do not
@@ -284,7 +299,9 @@ ScienceDB files separate from the run.
 The full reference build covered 22 sources, 2,602,031 cells or nuclei and
 24,659 genes, from processed source files through integration and
 75-cluster partitioning. Targeted verification checked counts for two sources
-in the locked environment. Age summaries and label-transfer evaluation used
+in the locked environment. Separate tests of the public Li and Ma inputs
+reproduced the retained Stage 03 count matrices and key fields in the
+standardized metadata. Age summaries and label-transfer evaluation used
 retained donor centroids and predictions. Integration results and adopted
 annotations were carried forward. The supplementary
 ExecutionRecord records the inputs, outputs and scope of each stage.
